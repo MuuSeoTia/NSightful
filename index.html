@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NSightful GPU Visualizer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <h1>NSightful</h1>
+                <span class="subtitle">GPU Visualizer</span>
+            </div>
+            <div class="controls">
+                <button id="connectBtn" class="btn primary">Connect GPU</button>
+                <button id="recordBtn" class="btn secondary">Record Session</button>
+            </div>
+        </header>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Left Panel - GPU Info & Controls -->
+            <aside class="left-panel">
+                <div class="panel-section">
+                    <h3>GPU Information</h3>
+                    <div id="gpu-info" class="gpu-info">
+                        <div class="info-item">
+                            <span class="label">Name:</span>
+                            <span id="gpu-name" class="value">--</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Memory:</span>
+                            <span id="gpu-memory" class="value">--</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Temperature:</span>
+                            <span id="gpu-temp" class="value">--°C</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Power:</span>
+                            <span id="gpu-power" class="value">--W</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>Performance Metrics</h3>
+                    <div id="performance-charts" class="charts-container">
+                        <canvas id="utilChart" width="280" height="100"></canvas>
+                        <canvas id="memChart" width="280" height="100"></canvas>
+                        <canvas id="tempChart" width="280" height="100"></canvas>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>Visualization Controls</h3>
+                    <div class="controls-group">
+                        <label>
+                            <input type="checkbox" id="showSMs" checked> SM Units
+                        </label>
+                        <label>
+                            <input type="checkbox" id="showMemory" checked> Memory Hierarchy
+                        </label>
+                        <label>
+                            <input type="checkbox" id="showTensors" checked> Tensor Cores
+                        </label>
+                        <label>
+                            <input type="checkbox" id="realTimeMode" checked> Real-time Mode
+                        </label>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Center - 3D Visualization -->
+            <main class="visualization-container">
+                <div id="gpu-canvas-container" class="canvas-container">
+                    <canvas id="gpu-canvas"></canvas>
+                    <div class="canvas-overlay">
+                        <div id="performance-overlay" class="overlay-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">GPU Utilization</span>
+                                <span id="util-gpu" class="stat-value">0%</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Memory Utilization</span>
+                                <span id="util-mem" class="stat-value">0%</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">SM Clock</span>
+                                <span id="sm-clock" class="stat-value">0 MHz</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Right Panel - Analysis & Reports -->
+            <aside class="right-panel">
+                <div class="panel-section">
+                    <h3>Nsight Analysis</h3>
+                    <div class="analysis-container">
+                        <button id="loadReportBtn" class="btn secondary full-width">Load Nsight Report</button>
+                        <div id="analysis-results" class="analysis-results">
+                            <p class="placeholder">Load an Nsight Compute or Systems report to see detailed performance analysis.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>Bottleneck Detection</h3>
+                    <div id="bottlenecks" class="bottleneck-list">
+                        <div class="bottleneck-item">
+                            <span class="severity low">INFO</span>
+                            <span class="message">Waiting for analysis...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>Performance Timeline</h3>
+                    <div id="timeline-container" class="timeline">
+                        <canvas id="timeline-canvas" width="300" height="150"></canvas>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Footer Status Bar -->
+        <footer class="status-bar">
+            <div class="status-item">
+                <span id="connection-status">Disconnected</span>
+            </div>
+            <div class="status-item">
+                <span id="fps-counter">FPS: --</span>
+            </div>
+            <div class="status-item">
+                <span id="frame-time">Frame Time: -- ms</span>
+            </div>
+        </footer>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
