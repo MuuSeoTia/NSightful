@@ -25,9 +25,36 @@ fn now_ms() -> u128 {
 }
 
 // function for detecting devices and listing them
-pub fn list(nvml : &Nvml) -> Result<Vec<Device>> {
+pub fn device_list(nvml : &Nvml) -> Result<Vec<Device>> {
     count = nvml.device_count()?;
 
     (0..count).map(|i nvml.device_by_index(i)).collect(Result<Vec<_>,_>>().map_err(Into::into));
+}
+
+//function for retrieving nvml data in real time
+pub async fn nvml_stream(mut period_ms: u64) -> Result <()> {
+    if period_ms < 50 {
+        period_ms = 50;
+    }
+
+    let nvml = Nvml::init()?;
+    let devices = list_devices(&Nvml)?;
+
+    loop {
+        for(i,d) in devices.iter().enumerate() {
+            let util = d.utilization()?;
+            let name = d.name()?;
+            let temp = d.temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu)?;
+            let clocks = (d.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Sm)?,
+                          d.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Mem)?);
+            let tf = TelemetryFrame {
+            ts_ms = clocks;
+            index = i;
+            name = &self.name;
+            }
+        }
+        
+    }
+    
 }
 
