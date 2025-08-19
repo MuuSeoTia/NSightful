@@ -627,7 +627,7 @@ class EfficiencyCalculator {
             memoryEfficiency: this.calculateMemoryEfficiency(sample),
             powerEfficiency: this.calculatePowerEfficiency(sample),
             thermalEfficiency: this.calculateThermalEfficiency(sample),
-            overallEfficiency: 0 // Will be calculated
+            overallEfficiency: 0 // default value fix later
         };
     }
 
@@ -642,7 +642,7 @@ class EfficiencyCalculator {
 
     calculateMemoryEfficiency(sample) {
         const utilization = sample.utilMemory / 100;
-        const bandwidth = sample.memoryBandwidth || 500; // Default if not available
+        const bandwidth = sample.memoryBandwidth || 500;
         const maxBandwidth = this.baselineMetrics?.maxMemoryBandwidth || 1000;
         
         return (utilization * (bandwidth / maxBandwidth)) * 100;
@@ -689,7 +689,7 @@ class EfficiencyCalculator {
             }
         });
 
-        // Overall efficiency is weighted average
+        // overall efficiency is weighted average
         averages.overall = (
             averages.compute * 0.3 +
             averages.memory * 0.25 +

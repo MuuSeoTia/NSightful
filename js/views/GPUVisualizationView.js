@@ -1,6 +1,7 @@
 // GPU Visualization View - Handles 3D rendering and UI updates
 import * as THREE from 'three';
 import anime from 'animejs';
+import { DetailedGPUVisualization } from './DetailedGPUVisualization.js';
 
 export class GPUVisualizationView {
     constructor() {
@@ -57,17 +58,40 @@ export class GPUVisualizationView {
             statusIndicators: new Map(),
             controlPanels: new Map()
         };
+
+        // Advanced detailed visualization
+        this.detailedVisualization = null;
+        this.isDetailedMode = true; // Enable detailed mode by default
     }
 
     // Initialization
     async initialize() {
-        await this.setupThreeJS();
-        await this.createGPUModel();
-        this.setupLighting();
-        this.setupParticleEffects();
+        if (this.isDetailedMode) {
+            // Initialize the extremely detailed visualization
+            this.detailedVisualization = new DetailedGPUVisualization();
+            await this.detailedVisualization.initialize();
+            
+            // Use the detailed visualization's components
+            const vizData = this.detailedVisualization.getVisualizationData();
+            this.scene = vizData.scene;
+            this.camera = vizData.camera;
+            this.renderer = vizData.renderer;
+            this.gpuGroup = vizData.gpuGroup;
+            this.gpuModel = vizData.gpuGroup;
+            
+            console.log('Detailed GPU Visualization initialized with anime.js');
+        } else {
+            // Fallback to basic visualization
+            await this.setupThreeJS();
+            await this.createGPUModel();
+            this.setupLighting();
+            this.setupParticleEffects();
+            this.startRenderLoop();
+        }
+        
         this.setupPerformanceCharts();
         this.setupEventListeners();
-        this.startRenderLoop();
+        this.setupUI();
         
         console.log('GPU Visualization View initialized');
     }
@@ -706,11 +730,17 @@ export class GPUVisualizationView {
     updateVisualization(telemetryData) {
         if (!this.settings.realTimeMode) return;
 
-        this.updateSMUnits(telemetryData);
-        this.updateMemoryBlocks(telemetryData);
-        this.updateTensorCores(telemetryData);
-        this.updateParticleEffects(telemetryData);
-        this.updateInterconnects(telemetryData);
+        if (this.isDetailedMode && this.detailedVisualization) {
+            // Use the detailed visualization's update method
+            this.detailedVisualization.updateVisualizationWithTelemetry(telemetryData);
+        } else {
+            // Fallback to basic visualization updates
+            this.updateSMUnits(telemetryData);
+            this.updateMemoryBlocks(telemetryData);
+            this.updateTensorCores(telemetryData);
+            this.updateParticleEffects(telemetryData);
+            this.updateInterconnects(telemetryData);
+        }
         
         this.updatePerformanceOverlay(telemetryData);
     }
@@ -1180,3 +1210,4 @@ export class GPUVisualizationView {
         }
     }
 }
+

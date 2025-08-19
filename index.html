@@ -70,6 +70,36 @@
                         <label>
                             <input type="checkbox" id="realTimeMode" checked> Real-time Mode
                         </label>
+                        <label>
+                            <input type="checkbox" id="detailedMode" checked> Detailed Mode
+                        </label>
+                        <label>
+                            <input type="checkbox" id="quantumEffects" checked> Quantum Effects
+                        </label>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>Animation Controls</h3>
+                    <div class="controls-group">
+                        <label>
+                            Animation Speed: <span id="speedValue">1.0x</span>
+                        </label>
+                        <input type="range" id="animationSpeed" min="0.1" max="3.0" step="0.1" value="1.0" class="slider">
+                        
+                        <label>
+                            Camera Mode:
+                        </label>
+                        <select id="cameraMode" class="mode-select">
+                            <option value="overview">Overview</option>
+                            <option value="sm-focus">SM Focus</option>
+                            <option value="memory-focus">Memory Focus</option>
+                            <option value="chip-detail">Chip Detail</option>
+                            <option value="orbit">Auto Orbit</option>
+                        </select>
+                        
+                        <button id="triggerBootSequence" class="btn secondary">Boot Sequence</button>
+                        <button id="triggerStressTest" class="btn secondary">Stress Test Demo</button>
                     </div>
                 </div>
             </aside>
@@ -145,3 +175,4 @@
     <script type="module" src="main.js"></script>
 </body>
 </html>
+
