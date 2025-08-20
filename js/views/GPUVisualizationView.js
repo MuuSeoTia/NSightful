@@ -1209,5 +1209,105 @@ export class GPUVisualizationView {
             this.eventCallbacks.get(event).forEach(callback => callback(data));
         }
     }
+
+    // Setup UI components and interactions
+    setupUI() {
+        console.log('Setting up UI components...');
+        
+        // Initialize UI state
+        this.setupUIEventListeners();
+        this.initializeControlValues();
+        
+        console.log('UI setup complete');
+    }
+
+    setupUIEventListeners() {
+        // Animation speed control
+        const speedSlider = document.getElementById('animationSpeed');
+        const speedValue = document.getElementById('speedValue');
+        
+        if (speedSlider && speedValue) {
+            speedSlider.addEventListener('input', (e) => {
+                const speed = parseFloat(e.target.value);
+                speedValue.textContent = `${speed}x`;
+                this.settings.animationSpeed = speed;
+            });
+        }
+
+        // Camera mode selector
+        const cameraMode = document.getElementById('cameraMode');
+        if (cameraMode) {
+            cameraMode.addEventListener('change', (e) => {
+                this.settings.cameraMode = e.target.value;
+                console.log('Camera mode changed to:', e.target.value);
+            });
+        }
+
+        // Boot sequence button
+        const bootBtn = document.getElementById('triggerBootSequence');
+        if (bootBtn) {
+            bootBtn.addEventListener('click', () => {
+                this.triggerBootSequence();
+            });
+        }
+
+        // Stress test button
+        const stressBtn = document.getElementById('triggerStressTest');
+        if (stressBtn) {
+            stressBtn.addEventListener('click', () => {
+                this.triggerStressTest();
+            });
+        }
+    }
+
+    initializeControlValues() {
+        // Set initial values for UI controls
+        const speedValue = document.getElementById('speedValue');
+        if (speedValue) {
+            speedValue.textContent = `${this.settings.animationSpeed}x`;
+        }
+    }
+
+    triggerBootSequence() {
+        console.log('Triggering boot sequence animation...');
+        if (this.detailedVisualization && this.detailedVisualization.animationTimelines.bootSequence) {
+            this.detailedVisualization.animationTimelines.bootSequence.restart();
+        }
+        
+        // Add visual feedback
+        const bootBtn = document.getElementById('triggerBootSequence');
+        if (bootBtn) {
+            bootBtn.classList.add('boot-sequence-active');
+            setTimeout(() => {
+                bootBtn.classList.remove('boot-sequence-active');
+            }, 3000);
+        }
+    }
+
+    triggerStressTest() {
+        console.log('Triggering stress test simulation...');
+        if (this.detailedVisualization) {
+            // Simulate high utilization for demo
+            const mockHighUtilData = {
+                util_gpu: 95,
+                util_memory: 88,
+                temperature_c: 85,
+                sm_utilizations: new Array(128).fill(0.9)
+            };
+            
+            this.detailedVisualization.updateVisualizationWithTelemetry(mockHighUtilData);
+            
+            // Reset after 5 seconds
+            setTimeout(() => {
+                const mockNormalData = {
+                    util_gpu: 25,
+                    util_memory: 30,
+                    temperature_c: 55,
+                    sm_utilizations: new Array(128).fill(0.2)
+                };
+                this.detailedVisualization.updateVisualizationWithTelemetry(mockNormalData);
+            }, 5000);
+        }
+    }
 }
 

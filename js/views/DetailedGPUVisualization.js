@@ -195,8 +195,7 @@ export class DetailedGPUVisualization {
 
         // Smooth camera animation loop
         const updateCamera = () => {
-            // Smooth interpolation using anime.js easing
-            const easing = anime.easings['easeOutQuart'];
+            // Smooth interpolation with simple easing
             const lerpFactor = 0.05;
             
             currentRotationY += (targetRotationY - currentRotationY) * lerpFactor;
@@ -719,6 +718,249 @@ export class DetailedGPUVisualization {
         }
     }
 
+    async createMemoryInterconnects() {
+        // Create high-speed interconnects between memory controllers and L2 cache
+        const interconnectGeometry = new THREE.CylinderGeometry(0.02, 0.02, 1.5);
+        const interconnectMaterial = new THREE.MeshPhongMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.6,
+            emissive: 0x002222,
+            emissiveIntensity: 0.3
+        });
+
+        const interconnectCount = 12;
+        for (let i = 0; i < interconnectCount; i++) {
+            const interconnect = new THREE.Mesh(interconnectGeometry, interconnectMaterial);
+            
+            const angle = (i / interconnectCount) * Math.PI * 2;
+            interconnect.position.set(
+                Math.cos(angle) * 2.8,
+                0.25,
+                Math.sin(angle) * 2.8
+            );
+            
+            // Rotate to point towards center
+            interconnect.lookAt(0, 0.25, 0);
+            interconnect.rotateX(Math.PI / 2);
+            
+            interconnect.userData = {
+                type: 'memory_interconnect',
+                id: i,
+                bandwidth: 0
+            };
+            
+            this.gpuArchitecture.interconnectNetwork.push(interconnect);
+        }
+        
+        console.log('Memory interconnects created');
+    }
+
+    async createSpecializedCores() {
+        console.log('Creating specialized cores (tensor cores, RT cores)...');
+        
+        // Create tensor cores distributed across SMs
+        await this.createTensorCores();
+        
+        // Create RT cores for ray tracing
+        await this.createRTCores();
+        
+        // Create raster operators
+        await this.createRasterOperators();
+        
+        console.log('Specialized cores created');
+    }
+
+    async createTensorCores() {
+        // Add tensor cores to each SM (typically 4 per SM for modern GPUs)
+        this.gpuArchitecture.smArray.forEach((sm, smIndex) => {
+            const tensorCoresPerSM = 4;
+            
+            for (let i = 0; i < tensorCoresPerSM; i++) {
+                const tensorGeometry = new THREE.OctahedronGeometry(0.015);
+                const tensorMaterial = new THREE.MeshPhongMaterial({
+                    color: 0xff6600,
+                    transparent: true,
+                    opacity: 0.8,
+                    emissive: 0x331100,
+                    emissiveIntensity: 0.2
+                });
+                
+                const tensorCore = new THREE.Mesh(tensorGeometry, tensorMaterial);
+                tensorCore.position.set(
+                    (i - 1.5) * 0.03,
+                    0.12,
+                    -0.06
+                );
+                
+                tensorCore.userData = {
+                    type: 'tensor_core',
+                    id: i,
+                    smId: smIndex,
+                    active: false,
+                    workload: 0
+                };
+                
+                sm.add(tensorCore);
+                this.gpuArchitecture.tensorCores.push(tensorCore);
+            }
+        });
+    }
+
+    async createRTCores() {
+        // Add RT cores to each SM (typically 1-2 per SM for modern GPUs)
+        this.gpuArchitecture.smArray.forEach((sm, smIndex) => {
+            const rtCoresPerSM = 1;
+            
+            for (let i = 0; i < rtCoresPerSM; i++) {
+                const rtGeometry = new THREE.DodecahedronGeometry(0.012);
+                const rtMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x00ff99,
+                    transparent: true,
+                    opacity: 0.8,
+                    emissive: 0x003322,
+                    emissiveIntensity: 0.2
+                });
+                
+                const rtCore = new THREE.Mesh(rtGeometry, rtMaterial);
+                rtCore.position.set(
+                    0,
+                    0.12,
+                    0.06
+                );
+                
+                rtCore.userData = {
+                    type: 'rt_core',
+                    id: i,
+                    smId: smIndex,
+                    active: false,
+                    rays_per_second: 0
+                };
+                
+                sm.add(rtCore);
+                this.gpuArchitecture.rtCores.push(rtCore);
+            }
+        });
+    }
+
+    async createRasterOperators() {
+        // Create raster operators (ROPs) around the GPU perimeter
+        const ropCount = 16; // Typical for high-end GPUs
+        
+        for (let i = 0; i < ropCount; i++) {
+            const ropGeometry = new THREE.BoxGeometry(0.15, 0.06, 0.1);
+            const ropMaterial = new THREE.MeshPhongMaterial({
+                color: 0xff3366,
+                transparent: true,
+                opacity: 0.7,
+                emissive: 0x220011,
+                emissiveIntensity: 0.2
+            });
+            
+            const rop = new THREE.Mesh(ropGeometry, ropMaterial);
+            
+            const angle = (i / ropCount) * Math.PI * 2;
+            rop.position.set(
+                Math.cos(angle) * 2.8,
+                0.15,
+                Math.sin(angle) * 2.8
+            );
+            rop.rotation.y = angle;
+            
+            rop.userData = {
+                type: 'raster_operator',
+                id: i,
+                pixel_rate: 0,
+                active: false
+            };
+            
+            this.gpuArchitecture.rasterOperators.push(rop);
+        }
+    }
+
+    async createInterconnectNetwork() {
+        console.log('Creating interconnect network...');
+        // This function can be implemented later for additional interconnects
+    }
+
+    async createPowerAndThermalSystems() {
+        console.log('Creating power and thermal systems...');
+        
+        // Create power delivery components
+        await this.createPowerDelivery();
+        
+        // Create thermal sensors
+        await this.createThermalSensors();
+    }
+
+    async createPowerDelivery() {
+        // Create VRM (Voltage Regulator Modules) around the GPU
+        const vrmCount = 8;
+        
+        for (let i = 0; i < vrmCount; i++) {
+            const vrmGeometry = new THREE.BoxGeometry(0.1, 0.05, 0.06);
+            const vrmMaterial = new THREE.MeshLambertMaterial({
+                color: 0x444444
+            });
+            
+            const vrm = new THREE.Mesh(vrmGeometry, vrmMaterial);
+            
+            const angle = (i / vrmCount) * Math.PI * 2;
+            vrm.position.set(
+                Math.cos(angle) * 3.2,
+                0.05,
+                Math.sin(angle) * 3.2
+            );
+            
+            vrm.userData = {
+                type: 'vrm',
+                id: i,
+                voltage: 1.0,
+                current: 0,
+                temperature: 45
+            };
+            
+            this.gpuArchitecture.powerDelivery.push(vrm);
+        }
+    }
+
+    async createThermalSensors() {
+        // Create thermal sensors across the GPU
+        const sensorCount = 12;
+        
+        for (let i = 0; i < sensorCount; i++) {
+            const sensorGeometry = new THREE.SphereGeometry(0.008);
+            const sensorMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffaa00
+            });
+            
+            const sensor = new THREE.Mesh(sensorGeometry, sensorMaterial);
+            
+            // Distribute sensors across the GPU surface
+            const angle = (i / sensorCount) * Math.PI * 2;
+            const radius = 1.5 + Math.random() * 1.0;
+            sensor.position.set(
+                Math.cos(angle) * radius,
+                0.3,
+                Math.sin(angle) * radius
+            );
+            
+            sensor.userData = {
+                type: 'thermal_sensor',
+                id: i,
+                temperature: 50 + Math.random() * 20
+            };
+            
+            this.gpuArchitecture.thermalSensors.push(sensor);
+        }
+    }
+
+    async createQuantumEffects() {
+        console.log('Creating quantum effects...');
+        // Placeholder for advanced quantum computing visualization
+        // This could include quantum tunneling effects, etc.
+    }
+
     // Initialize advanced animation timelines using anime.js
     initializeAnimationTimelines() {
         console.log('Initializing anime.js animation timelines...');
@@ -1134,6 +1376,59 @@ export class DetailedGPUVisualization {
         const rimLight = new THREE.DirectionalLight(0x88ccff, 0.6);
         rimLight.position.set(0, 0, -10);
         this.scene.add(rimLight);
+    }
+
+    // Missing function implementations
+    setupPostProcessing() {
+        console.log('Setting up post-processing effects...');
+        // Basic post-processing setup - can be enhanced later
+        // For now, we'll just log that it's set up
+    }
+
+    createAdvancedMaterials() {
+        console.log('Creating advanced materials...');
+        // Advanced material creation - can be enhanced later
+        // This would include custom shaders, etc.
+    }
+
+    setupAdvancedParticleEffects() {
+        console.log('Setting up advanced particle effects...');
+        // Particle system setup for data flow visualization
+        // This would include particle systems for electrical effects, etc.
+    }
+
+    setupInteractiveControls() {
+        console.log('Setting up interactive controls...');
+        // Interactive control setup - mouse interaction, UI controls, etc.
+        // Basic interaction is already handled in camera controls
+    }
+
+    updateAdvancedEffects(timestamp) {
+        // Update time-based effects
+        const time = timestamp * 0.001;
+        
+        // Subtle chip package animation
+        if (this.gpuArchitecture.chipPackage) {
+            this.gpuArchitecture.chipPackage.rotation.y = Math.sin(time * 0.1) * 0.05;
+        }
+        
+        // L2 cache rotation
+        if (this.gpuArchitecture.l2Cache) {
+            this.gpuArchitecture.l2Cache.rotation.y += 0.002;
+        }
+        
+        // Memory controller breathing
+        this.gpuArchitecture.memoryControllers.forEach((controller, index) => {
+            if (controller.userData.bandwidth > 500) {
+                controller.scale.y = 1 + Math.sin(time * 2 + index) * 0.1;
+            }
+        });
+    }
+
+    updateParticleEffects(timestamp) {
+        // Update data flow particles, electrical effects, etc.
+        // This would include complex particle system updates
+        // Removed console.log to prevent performance issues
     }
 
     // Export the visualization for integration with the main app

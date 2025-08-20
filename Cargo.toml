@@ -11,8 +11,7 @@ csv = "1"
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 nvml-wrapper = "0.10"
-tauri = { version = "1.7", features = ["api-all"] }
-tauri-build = "1.5"
+tauri = { version = "2.0", features = [] }
 
 [build-dependencies]
-tauri-build = { version = "1.5", features = [] }
+tauri-build = { version = "2.0", features = [] }

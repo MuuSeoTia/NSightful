@@ -101,7 +101,7 @@ pub async fn get_gpu_info() -> Result<GPUInfo> {
         
         // Get current telemetry for the first device
         if index == 0 {
-            current_telemetry = Some(collect_telemetry_frame(device, index as u32)?);
+            current_telemetry = Some(create_simple_telemetry_frame(device, index as u32)?);
         }
     }
     
@@ -115,7 +115,7 @@ pub async fn get_gpu_info() -> Result<GPUInfo> {
 fn create_gpu_device_info(device: &Device, index: u32) -> Result<GPUDevice> {
     let name = device.name()?;
     let uuid = device.uuid()?.to_string();
-    let pci_info = format!("{}", device.pci_info()?);
+    let pci_info = format!("{:?}", device.pci_info()?);
     let memory_info = device.memory_info()?;
     let memory_total_mb = (memory_info.total / (1024 * 1024)) as u64;
     
@@ -126,15 +126,15 @@ fn create_gpu_device_info(device: &Device, index: u32) -> Result<GPUDevice> {
     );
     
     // Get clock information
-    let sm_clock = device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Sm).unwrap_or(0);
-    let memory_clock = device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Mem).unwrap_or(0);
+    let sm_clock = device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Graphics).unwrap_or(0);
+    let memory_clock = device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Memory).unwrap_or(0);
     
     // Estimate cores based on GPU name (this is approximate)
     let (sm_count, cores_per_sm) = estimate_gpu_specs(&name);
     
     Ok(GPUDevice {
         index,
-        name,
+        name: name.clone(),
         uuid,
         pci_info,
         memory_total_mb,
@@ -173,7 +173,7 @@ fn estimate_gpu_specs(name: &str) -> (u32, u32) {
 }
 
 // Estimate L2 cache size based on GPU name
-fn estimate_l2_cache(&name: &str) -> u32 {
+fn estimate_l2_cache(name: &str) -> u32 {
     if name.contains("RTX 40") {
         72 // 72MB for RTX 40 series
     } else if name.contains("RTX 30") {
@@ -230,9 +230,9 @@ pub async fn get_detailed_gpu_info() -> Result<GPUArchitecture> {
         max_threads_per_sm: 1536,
         max_threads_per_block: 1024,
         warp_size: 32,
-        base_clock_mhz: device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Sm).unwrap_or(1400),
-        boost_clock_mhz: device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Sm).unwrap_or(1700),
-        memory_clock_mhz: device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Mem).unwrap_or(7000),
+        base_clock_mhz: device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Graphics).unwrap_or(1400),
+        boost_clock_mhz: device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Graphics).unwrap_or(1700),
+        memory_clock_mhz: device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Memory).unwrap_or(7000),
         max_power_w: device.power_management_limit_default().unwrap_or(350000) as f32 / 1000.0,
         thermal_design_power_w: device.power_management_limit_default().unwrap_or(350000) as f32 / 1000.0,
     })
@@ -275,17 +275,17 @@ pub async fn nvml_stream(mut period_ms: u64) -> Result<()> {
 
     loop {
         for (i, d) in devices.iter().enumerate() {
-            let util = d.utilization()?;
+            let util = d.utilization_rates()?;
             let name = d.name()?;
             let temp = d.temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu)?;
-            let clocks = (d.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Sm)?,
-                          d.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Mem)?);
+            let clocks = (d.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Graphics)?,
+                          d.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Memory)?);
             let mem = d.memory_info()?;
-            let power = d.power_usage().unwrap_or(0.0) / 1000.0; // Convert mW to W
+            let power = d.power_usage().unwrap_or(0) as f32 / 1000.0; // Convert mW to W
             let frame = TelemetryFrame {
                 timestamp: now_ms(),
                 device_index: i as u32,
-                name,
+                name: name.clone(),
                 util_gpu: util.gpu,
                 util_memory: util.memory,
                 memory_used_mb: (mem.used / (1024 * 1024)) as u64,
@@ -334,13 +334,13 @@ pub async fn nvml_stream_with_broadcast(
 
         // Collect telemetry from all devices
         for (i, device) in devices.iter().enumerate() {
-            let util = device.utilization()?;
+            let util = device.utilization_rates()?;
             let name = device.name()?;
             let temp = device.temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu)?;
-            let clocks = (device.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Sm)?,
-                          device.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Mem)?);
+            let clocks = (device.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Graphics)?,
+                          device.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Memory)?);
             let mem = device.memory_info()?;
-            let power = device.power_usage().unwrap_or(0.0) / 1000.0;
+            let power = device.power_usage().unwrap_or(0) as f32 / 1000.0;
             
             let frame = TelemetryFrame {
                 timestamp: now_ms(),
@@ -390,5 +390,69 @@ fn generate_sm_utilizations(overall_util: u32, sm_count: u32) -> Vec<f32> {
     }
     
     utilizations
+}
+
+// Create a simple telemetry frame for current implementation
+fn create_simple_telemetry_frame(device: &Device, index: u32) -> Result<TelemetryFrame> {
+    let util = device.utilization_rates()?;
+    let name = device.name()?;
+    let temp = device.temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu)?;
+    let clocks = (
+        device.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Graphics)?,
+        device.clock_info(nvml_wrapper::enum_wrappers::device::Clock::Memory)?
+    );
+    let mem = device.memory_info()?;
+    let power = device.power_usage().unwrap_or(0) as f32 / 1000.0;
+    let fan_speed = device.fan_speed(0).unwrap_or(0);
+    
+    // Generate per-SM utilization (simulated for now)
+    let (sm_count, _) = estimate_gpu_specs(&name);
+    let sm_utilizations = generate_sm_utilizations(util.gpu, sm_count);
+    
+    // Calculate memory bandwidth (estimated)
+    let memory_bandwidth = estimate_memory_bandwidth(&name, util.memory);
+    
+    Ok(TelemetryFrame {
+        timestamp: now_ms(),
+        device_index: index,
+        name,
+        util_gpu: util.gpu,
+        util_memory: util.memory,
+        memory_used_mb: (mem.used / (1024 * 1024)) as u64,
+        memory_total_mb: (mem.total / (1024 * 1024)) as u64,
+        sm_clock_mhz: clocks.0,
+        memory_clock_mhz: clocks.1,
+        temperature_c: temp,
+        power_w: power,
+        fan_speed_percent: fan_speed,
+        sm_utilizations,
+        memory_bandwidth_gbps: memory_bandwidth,
+        pcie_utilization: estimate_pcie_utilization(util.gpu, util.memory),
+    })
+}
+
+// Estimate memory bandwidth based on GPU and utilization
+fn estimate_memory_bandwidth(name: &str, memory_util: u32) -> f32 {
+    let max_bandwidth = if name.contains("RTX 4090") {
+        1008.0 // GB/s
+    } else if name.contains("RTX 4080") {
+        717.0
+    } else if name.contains("RTX 4070") {
+        504.0
+    } else if name.contains("RTX 3090") {
+        936.0
+    } else if name.contains("RTX 3080") {
+        760.0
+    } else {
+        500.0 // Generic fallback
+    };
+    
+    max_bandwidth * (memory_util as f32 / 100.0)
+}
+
+// Estimate PCIe utilization
+fn estimate_pcie_utilization(gpu_util: u32, memory_util: u32) -> u32 {
+    // Simple heuristic: PCIe usage correlates with data movement
+    ((gpu_util + memory_util) as f32 * 0.3) as u32
 }
 
