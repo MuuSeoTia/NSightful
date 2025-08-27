@@ -1,5 +1,52 @@
 // GPU Data Model - Handles all data operations and state management
-import { invoke } from '@tauri-apps/api/tauri';
+
+// Check if we're running in Tauri environment
+const isTauriAvailable = () => {
+    return typeof window !== 'undefined' && window.__TAURI_IPC__;
+};
+
+// Mock invoke function for web mode
+const mockInvoke = async (cmd, args) => {
+    console.log(`Mock Tauri command: ${cmd}`, args);
+    
+    switch (cmd) {
+        case 'get_gpu_telemetry':
+            return JSON.stringify({
+                status: 'connected',
+                gpus: [{
+                    id: 0,
+                    name: 'Mock GPU (RTX 4090)',
+                    memory_total: 24 * 1024 * 1024 * 1024,
+                    memory_used: 8 * 1024 * 1024 * 1024
+                }]
+            });
+        case 'start_nvml_stream':
+            return 'Mock stream started';
+        case 'get_gpu_architecture':
+            return JSON.stringify({
+                name: 'Mock RTX 4090',
+                smCount: 128,
+                coresPerSM: 128,
+                memoryBusWidth: 384
+            });
+        default:
+            return 'Mock response';
+    }
+};
+
+// Dynamic import and safe invoke function
+const getSafeInvoke = async () => {
+    if (isTauriAvailable()) {
+        try {
+            const { invoke } = await import('@tauri-apps/api/tauri');
+            return invoke;
+        } catch (error) {
+            console.log('Failed to import Tauri API, using mock');
+            return mockInvoke;
+        }
+    }
+    return mockInvoke;
+};
 
 export class GPUDataModel {
     constructor() {
@@ -92,7 +139,8 @@ export class GPUDataModel {
         this.emit('connectionStateChanged', { connecting: true });
 
         try {
-            const result = await invoke('get_gpu_telemetry');
+            const safeInvoke = await getSafeInvoke();
+            const result = await safeInvoke('get_gpu_telemetry');
             const data = JSON.parse(result);
             
             this.state.devices = data.gpus || [];
@@ -160,7 +208,8 @@ export class GPUDataModel {
             this.state.streamingConfig.enabled = true;
 
             // Start the backend streaming
-            await invoke('start_nvml_stream', { periodMs: this.state.streamingConfig.periodMs });
+            const safeInvoke = await getSafeInvoke();
+            await safeInvoke('start_nvml_stream', { periodMs: this.state.streamingConfig.periodMs });
             
             // Start the frontend data simulation/collection loop
             this.startDataCollectionLoop();

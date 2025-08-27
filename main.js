@@ -1,5 +1,4 @@
 // NSightful GPU Visualizer - Main Application
-import { invoke } from '@tauri-apps/api/tauri';
 import { AppController } from './js/controllers/AppController.js';
 
 // MVC Architecture Implementation
