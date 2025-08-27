@@ -1,4 +1,5 @@
 // GPU Data Model - Handles all data operations and state management
+import { TestDataLoader } from '../utils/TestDataLoader.js';
 
 // Check if we're running in Tauri environment
 const isTauriAvailable = () => {
@@ -50,6 +51,10 @@ const getSafeInvoke = async () => {
 
 export class GPUDataModel {
     constructor() {
+        // Initialize test data loader
+        this.testDataLoader = new TestDataLoader();
+        this.realtimeSimulationId = null;
+        
         this.state = {
             // Connection State
             connected: false,
@@ -502,5 +507,107 @@ class GPUDataProcessor {
         }
 
         return bottlenecks;
+    }
+
+    // Test Data Integration Methods
+    async loadTestData() {
+        try {
+            await this.testDataLoader.loadTestData();
+            this.emit('testDataLoaded', { success: true });
+            return true;
+        } catch (error) {
+            console.error('Failed to load test data:', error);
+            this.emit('testDataLoaded', { success: false, error: error.message });
+            return false;
+        }
+    }
+
+    async loadTestScenario(scenarioName) {
+        try {
+            // Stop any existing simulation
+            this.stopTestScenario();
+            
+            // Load test data if not already loaded
+            if (!this.testDataLoader.testData) {
+                await this.loadTestData();
+            }
+
+            // Start real-time simulation for the scenario
+            this.realtimeSimulationId = this.testDataLoader.startRealtimeSimulation(
+                scenarioName,
+                (activityData) => this.handleTestActivityData(activityData),
+                100 // Update every 100ms
+            );
+
+            this.state.connected = true;
+            this.emit('scenarioLoaded', { scenario: scenarioName, success: true });
+            
+            console.log(`Test scenario "${scenarioName}" loaded successfully`);
+            return true;
+        } catch (error) {
+            console.error('Failed to load test scenario:', error);
+            this.emit('scenarioLoaded', { scenario: scenarioName, success: false, error: error.message });
+            return false;
+        }
+    }
+
+    stopTestScenario() {
+        if (this.realtimeSimulationId) {
+            this.testDataLoader.stopRealtimeSimulation(this.realtimeSimulationId);
+            this.realtimeSimulationId = null;
+        }
+    }
+
+    handleTestActivityData(activityData) {
+        // Convert test activity data to telemetry format
+        const telemetryData = {
+            timestamp: activityData.timestamp,
+            utilGPU: activityData.metrics.gpuUtilization,
+            utilMemory: activityData.metrics.memoryUtilization,
+            temperature: 45 + activityData.metrics.gpuUtilization * 0.5 + Math.random() * 10,
+            power: 100 + activityData.metrics.gpuUtilization * 3.5 + Math.random() * 50,
+            smClock: 1200 + activityData.metrics.gpuUtilization * 10,
+            memoryClock: 6000 + activityData.metrics.memoryUtilization * 30,
+            memoryUsed: (8000 + activityData.metrics.memoryUtilization * 160) * 1024 * 1024,
+            memoryTotal: 24 * 1024 * 1024 * 1024,
+            smUtilizations: activityData.components.sms.map(sm => sm.utilization),
+            memoryBandwidth: activityData.metrics.memoryUtilization * 9,
+            pcieUtilization: Math.min(100, activityData.metrics.gpuUtilization * 0.8),
+            fanSpeed: Math.max(30, 50 + activityData.metrics.gpuUtilization * 0.5),
+            // Extended data for detailed visualization
+            tensorCoreActivity: activityData.components.tensorCores,
+            rtCoreActivity: activityData.components.rtCores,
+            memoryControllerActivity: activityData.components.memoryControllers,
+            componentActivity: activityData.components
+        };
+
+        // Update telemetry with test data
+        this.updateTelemetryData(telemetryData);
+
+        // Analyze for bottlenecks
+        const bottlenecks = this.testDataLoader.analyzePerformanceBottlenecks(activityData);
+        if (bottlenecks.length > 0) {
+            this.emit('bottlenecksDetected', bottlenecks);
+        }
+    }
+
+    getAvailableTestScenarios() {
+        return [
+            { id: 'gaming', name: 'Gaming Workload', description: 'Mixed compute and ray tracing' },
+            { id: 'ml', name: 'ML Training', description: 'Heavy tensor core usage' },
+            { id: 'crypto', name: 'Crypto Mining', description: 'Pure compute workload' },
+            { id: 'raytracing', name: 'Ray Tracing', description: 'RT core intensive rendering' }
+        ];
+    }
+
+    getTestReport(reportName) {
+        return this.testDataLoader.getReportByName(reportName);
+    }
+
+    exportTestData() {
+        if (this.state.performanceHistory.length > 0) {
+            return this.testDataLoader.exportActivityLog(this.state.performanceHistory);
+        }
+        return null;
     }
 }

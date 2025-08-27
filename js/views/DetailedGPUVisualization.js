@@ -88,45 +88,78 @@ export class DetailedGPUVisualization {
     }
 
     async setupAdvancedThreeJS() {
-        const container = document.getElementById('gpu-canvas');
+        const container = document.getElementById('gpu-visualization');
         
-        // Scene with advanced fog and environment
+        // Industrial Sci-Fi Scene Setup
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x000000);
-        this.scene.fog = new THREE.FogExp2(0x000000, 0.02);
+        this.scene.background = new THREE.Color(0x0a0a0f);
         
-        // Advanced camera with realistic FOV
+        // Atmospheric fog for depth and mystique
+        this.scene.fog = new THREE.FogExp2(0x0a0a0f, 0.0008);
+        
+        // Cinematic camera setup
         this.camera = new THREE.PerspectiveCamera(
-            35, 
-            container.clientWidth / container.clientHeight, 
+            50, 
+            container ? container.clientWidth / container.clientHeight : window.innerWidth / window.innerHeight, 
             0.1, 
-            1000
+            3000
         );
-        this.camera.position.set(8, 6, 8);
+        this.camera.position.set(0, 80, 150);
         this.camera.lookAt(0, 0, 0);
 
-        // High-quality renderer with advanced settings
+        // Create canvas element if container exists
+        const canvas = document.createElement('canvas');
+        canvas.id = 'gpu-canvas';
+        if (container) {
+            container.appendChild(canvas);
+        }
+
+        // Advanced renderer with sci-fi enhancements
         this.renderer = new THREE.WebGLRenderer({ 
-            canvas: document.getElementById('gpu-canvas'),
+            canvas: canvas,
             antialias: true,
             alpha: true,
             powerPreference: 'high-performance',
+            logarithmicDepthBuffer: true,
             stencil: false,
             depth: true
         });
         
-        this.renderer.setSize(container.clientWidth, container.clientHeight);
+        const width = container ? container.clientWidth : window.innerWidth;
+        const height = container ? container.clientHeight : window.innerHeight;
+        
+        this.renderer.setSize(width, height);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        
+        // Enhanced shadow mapping for industrial aesthetics
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.2;
-        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+        this.renderer.shadowMap.autoUpdate = true;
         
-        // Enable advanced WebGL features
-        this.renderer.capabilities.logarithmicDepthBuffer = true;
+        // Advanced color grading for sci-fi look
+        this.renderer.toneMapping = THREE.CineonToneMapping;
+        this.renderer.toneMappingExposure = 2.5;
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+        this.renderer.physicallyCorrectLights = true;
+        
+        // Handle resize for responsive design
+        window.addEventListener('resize', () => this.handleResize());
         
         this.setupAdvancedCameraControls();
+    }
+
+    handleResize() {
+        const container = document.getElementById('gpu-visualization');
+        const width = container ? container.clientWidth : window.innerWidth;
+        const height = container ? container.clientHeight : window.innerHeight;
+        
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(width, height);
+        
+        if (this.composer) {
+            this.composer.setSize(width, height);
+        }
     }
 
     setupAdvancedCameraControls() {

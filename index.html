@@ -5,174 +5,349 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NSightful GPU Visualizer</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </head>
 <body>
     <div id="app">
-        <!-- Header -->
-        <header class="header">
-            <div class="logo">
-                <h1>NSightful</h1>
-                <span class="subtitle">GPU Visualizer</span>
+        <!-- Navigation Header -->
+        <nav class="nav-header">
+            <div class="nav-container">
+                <div class="logo">NSightful</div>
+                
+                <div class="nav-tabs">
+                    <a href="#" class="nav-tab active" data-page="dashboard">Dashboard</a>
+                    <a href="#" class="nav-tab" data-page="visualization">3D Visualization</a>
+                    <a href="#" class="nav-tab" data-page="analysis">Analysis</a>
+                    <a href="#" class="nav-tab" data-page="performance">Performance</a>
+                    <a href="#" class="nav-tab" data-page="settings">Settings</a>
+                </div>
+                
+                <div class="connection-status">
+                    <div class="status-indicator" id="connectionIndicator"></div>
+                    <span id="connectionText">Disconnected</span>
+                    <button id="connectBtn">Connect</button>
+                </div>
             </div>
-            <div class="controls">
-                <button id="connectBtn" class="btn primary">Connect GPU</button>
-                <button id="recordBtn" class="btn secondary">Record Session</button>
+        </nav>
+
+        <!-- Dashboard Page -->
+        <div class="page-container active" id="dashboard-page">
+            <div class="stats-overview">
+                <div class="stat-card">
+                    <div class="stat-label">GPU Utilization</div>
+                    <div class="stat-value" id="gpu-util-stat">0<span class="stat-unit">%</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Memory Usage</div>
+                    <div class="stat-value" id="memory-util-stat">0<span class="stat-unit">%</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Temperature</div>
+                    <div class="stat-value" id="temp-stat">0<span class="stat-unit">°C</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Power Draw</div>
+                    <div class="stat-value" id="power-stat">0<span class="stat-unit">W</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">SM Clock</div>
+                    <div class="stat-value" id="clock-stat">0<span class="stat-unit">MHz</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Active SMs</div>
+                    <div class="stat-value" id="sm-stat">0<span class="stat-unit">/128</span></div>
+                </div>
             </div>
-        </header>
 
-        <!-- Main Layout -->
-        <div class="main-layout">
-            <!-- Left Panel - GPU Info & Controls -->
-            <aside class="left-panel">
-                <div class="panel-section">
-                    <h3>GPU Information</h3>
-                    <div id="gpu-info" class="gpu-info">
-                        <div class="info-item">
-                            <span class="label">Name:</span>
-                            <span id="gpu-name" class="value">--</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Memory:</span>
-                            <span id="gpu-memory" class="value">--</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Temperature:</span>
-                            <span id="gpu-temp" class="value">--°C</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Power:</span>
-                            <span id="gpu-power" class="value">--W</span>
+            <div class="dashboard-grid">
+                <div class="control-panel">
+                    <div class="control-section">
+                        <h3>Quick Actions</h3>
+                        <button id="loadTestData" class="full-width mb-md">Load Test Data</button>
+                        <button id="startMonitoring" class="secondary full-width mb-md">Start Monitoring</button>
+                        <button id="resetView" class="outline full-width">Reset View</button>
+                    </div>
+
+                    <div class="control-section">
+                        <h3>Test Scenarios</h3>
+                        <select id="scenarioSelect" class="mb-md">
+                            <option value="">Select Scenario</option>
+                            <option value="gaming">Gaming Workload</option>
+                            <option value="ml">ML Training</option>
+                            <option value="crypto">Crypto Mining</option>
+                            <option value="raytracing">Ray Tracing</option>
+                        </select>
+                        <button id="loadScenario" class="full-width">Load Scenario</button>
+                    </div>
+
+                    <div class="control-section">
+                        <h3>GPU Information</h3>
+                        <div class="gpu-info">
+                            <div class="stat-row">
+                                <span>Model:</span>
+                                <span id="gpu-model">RTX 4090</span>
+                            </div>
+                            <div class="stat-row">
+                                <span>Memory:</span>
+                                <span id="gpu-memory">24GB</span>
+                            </div>
+                            <div class="stat-row">
+                                <span>SMs:</span>
+                                <span id="gpu-sms">128</span>
+                            </div>
+                            <div class="stat-row">
+                                <span>RT Cores:</span>
+                                <span id="gpu-rt">84</span>
+                            </div>
+                            <div class="stat-row">
+                                <span>Tensor:</span>
+                                <span id="gpu-tensor">512</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="panel-section">
-                    <h3>Performance Metrics</h3>
-                    <div id="performance-charts" class="charts-container">
-                        <canvas id="utilChart" width="280" height="100"></canvas>
-                        <canvas id="memChart" width="280" height="100"></canvas>
-                        <canvas id="tempChart" width="280" height="100"></canvas>
+                <div class="visualization-main">
+                    <div id="gpu-visualization">
+                        <!-- Three.js canvas will be inserted here -->
+                    </div>
+                    
+                    <div class="overlay-stats">
+                        <div class="stat-row">
+                            <span>GPU:</span>
+                            <span id="overlay-gpu">0%</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>MEM:</span>
+                            <span id="overlay-mem">0%</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>TEMP:</span>
+                            <span id="overlay-temp">0°C</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>PWR:</span>
+                            <span id="overlay-pwr">0W</span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="panel-section">
-                    <h3>Visualization Controls</h3>
-                    <div class="controls-group">
-                        <label>
-                            <input type="checkbox" id="showSMs" checked> SM Units
-                        </label>
-                        <label>
-                            <input type="checkbox" id="showMemory" checked> Memory Hierarchy
-                        </label>
-                        <label>
-                            <input type="checkbox" id="showTensors" checked> Tensor Cores
-                        </label>
-                        <label>
-                            <input type="checkbox" id="realTimeMode" checked> Real-time Mode
-                        </label>
-                        <label>
-                            <input type="checkbox" id="detailedMode" checked> Detailed Mode
-                        </label>
-                        <label>
-                            <input type="checkbox" id="quantumEffects" checked> Quantum Effects
-                        </label>
+                <div class="performance-panel">
+                    <div class="control-section">
+                        <h3>Live Charts</h3>
+                        <div class="chart-container">
+                            <div class="chart-title">GPU Utilization</div>
+                            <canvas id="gpu-chart" width="300" height="150"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <div class="chart-title">Memory Usage</div>
+                            <canvas id="memory-chart" width="300" height="150"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <div class="chart-title">Temperature</div>
+                            <canvas id="temp-chart" width="300" height="150"></canvas>
+                        </div>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <div class="panel-section">
-                    <h3>Animation Controls</h3>
-                    <div class="controls-group">
-                        <label>
-                            Animation Speed: <span id="speedValue">1.0x</span>
-                        </label>
-                        <input type="range" id="animationSpeed" min="0.1" max="3.0" step="0.1" value="1.0" class="slider">
-                        
-                        <label>
-                            Camera Mode:
-                        </label>
-                        <select id="cameraMode" class="mode-select">
+        <!-- 3D Visualization Page -->
+        <div class="page-container" id="visualization-page">
+            <div class="dashboard-grid">
+                <div class="control-panel">
+                    <div class="control-section">
+                        <h3>Visualization Controls</h3>
+                        <label><input type="checkbox" id="showSMs" checked> SM Units</label>
+                        <label><input type="checkbox" id="showMemory" checked> Memory Hierarchy</label>
+                        <label><input type="checkbox" id="showTensors" checked> Tensor Cores</label>
+                        <label><input type="checkbox" id="showRTCores" checked> RT Cores</label>
+                        <label><input type="checkbox" id="showCooling" checked> Cooling System</label>
+                        <label><input type="checkbox" id="showPCB" checked> PCB & Components</label>
+                    </div>
+
+                    <div class="control-section">
+                        <h3>Camera Controls</h3>
+                        <label>Camera Mode:</label>
+                        <select id="cameraMode">
                             <option value="overview">Overview</option>
                             <option value="sm-focus">SM Focus</option>
                             <option value="memory-focus">Memory Focus</option>
-                            <option value="chip-detail">Chip Detail</option>
+                            <option value="tensor-focus">Tensor Focus</option>
+                            <option value="rt-focus">RT Core Focus</option>
                             <option value="orbit">Auto Orbit</option>
                         </select>
                         
-                        <button id="triggerBootSequence" class="btn secondary">Boot Sequence</button>
-                        <button id="triggerStressTest" class="btn secondary">Stress Test Demo</button>
+                        <label>Animation Speed: <span id="speedValue">1.0x</span></label>
+                        <input type="range" id="animationSpeed" min="0.1" max="3.0" step="0.1" value="1.0">
                     </div>
-                </div>
-            </aside>
 
-            <!-- Center - 3D Visualization -->
-            <main class="visualization-container">
-                <div id="gpu-canvas-container" class="canvas-container">
-                    <canvas id="gpu-canvas"></canvas>
-                    <div class="canvas-overlay">
-                        <div id="performance-overlay" class="overlay-stats">
-                            <div class="stat-item">
-                                <span class="stat-label">GPU Utilization</span>
-                                <span id="util-gpu" class="stat-value">0%</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-label">Memory Utilization</span>
-                                <span id="util-mem" class="stat-value">0%</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-label">SM Clock</span>
-                                <span id="sm-clock" class="stat-value">0 MHz</span>
-                            </div>
-                        </div>
+                    <div class="control-section">
+                        <h3>Component Isolation</h3>
+                        <button id="isolateCompute" class="full-width mb-md">Isolate Compute</button>
+                        <button id="isolateMemory" class="full-width mb-md">Isolate Memory</button>
+                        <button id="isolateTensors" class="full-width mb-md">Isolate Tensors</button>
+                        <button id="isolateRT" class="full-width mb-md">Isolate RT Cores</button>
+                        <button id="resetIsolation" class="outline full-width">Reset View</button>
                     </div>
-                </div>
-            </main>
 
-            <!-- Right Panel - Analysis & Reports -->
-            <aside class="right-panel">
-                <div class="panel-section">
-                    <h3>Nsight Analysis</h3>
-                    <div class="analysis-container">
-                        <button id="loadReportBtn" class="btn secondary full-width">Load Nsight Report</button>
-                        <div id="analysis-results" class="analysis-results">
-                            <p class="placeholder">Load an Nsight Compute or Systems report to see detailed performance analysis.</p>
-                        </div>
+                    <div class="control-section">
+                        <h3>Visual Effects</h3>
+                        <label><input type="checkbox" id="rimLighting" checked> Rim Lighting</label>
+                        <label><input type="checkbox" id="celShading" checked> Cel Shading</label>
+                        <label><input type="checkbox" id="bloomEffect" checked> Bloom Effect</label>
+                        <label><input type="checkbox" id="particleEffects" checked> Particle Effects</label>
+                        <label><input type="checkbox" id="heatMap" checked> Heat Mapping</label>
                     </div>
                 </div>
 
-                <div class="panel-section">
-                    <h3>Bottleneck Detection</h3>
-                    <div id="bottlenecks" class="bottleneck-list">
-                        <div class="bottleneck-item">
-                            <span class="severity low">INFO</span>
-                            <span class="message">Waiting for analysis...</span>
-                        </div>
+                <div class="visualization-main" style="grid-column: span 2;">
+                    <div id="gpu-visualization-full">
+                        <!-- Full-screen Three.js visualization -->
                     </div>
                 </div>
-
-                <div class="panel-section">
-                    <h3>Performance Timeline</h3>
-                    <div id="timeline-container" class="timeline">
-                        <canvas id="timeline-canvas" width="300" height="150"></canvas>
-                    </div>
-                </div>
-            </aside>
+            </div>
         </div>
 
-        <!-- Footer Status Bar -->
-        <footer class="status-bar">
-            <div class="status-item">
-                <span id="connection-status">Disconnected</span>
+        <!-- Analysis Page -->
+        <div class="page-container" id="analysis-page">
+            <div class="analysis-grid">
+                <div class="report-upload">
+                    <div class="upload-icon">📊</div>
+                    <h2>Upload NSight Report</h2>
+                    <p class="text-muted mb-lg">Drag and drop your NSight Compute or Systems report here</p>
+                    <button id="uploadBtn">Browse Files</button>
+                    <input type="file" id="fileInput" style="display: none;" accept=".nsight-cuprof,.ncu-rep,.qdrep">
+                </div>
+
+                <div class="control-panel">
+                    <div class="control-section">
+                        <h3>Report Analysis</h3>
+                        <div id="reportResults">
+                            <p class="text-muted">Upload a report to see analysis results</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="performance-panel">
+                    <div class="control-section">
+                        <h3>Performance Insights</h3>
+                        <div id="performanceInsights">
+                            <p class="text-muted">Analysis will appear here</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="status-item">
-                <span id="fps-counter">FPS: --</span>
+        </div>
+
+        <!-- Performance Page -->
+        <div class="page-container" id="performance-page">
+            <div class="dashboard-grid">
+                <div class="control-panel">
+                    <div class="control-section">
+                        <h3>Performance Monitoring</h3>
+                        <button id="startProfiling" class="full-width mb-md">Start Profiling</button>
+                        <button id="stopProfiling" class="secondary full-width mb-md">Stop Profiling</button>
+                        <button id="exportData" class="outline full-width">Export Data</button>
+                    </div>
+
+                    <div class="control-section">
+                        <h3>Metrics</h3>
+                        <label><input type="checkbox" id="trackGPU" checked> GPU Utilization</label>
+                        <label><input type="checkbox" id="trackMemory" checked> Memory Usage</label>
+                        <label><input type="checkbox" id="trackPower" checked> Power Consumption</label>
+                        <label><input type="checkbox" id="trackThermal" checked> Thermal Data</label>
+                        <label><input type="checkbox" id="trackClocks" checked> Clock Frequencies</label>
+                    </div>
+                </div>
+
+                <div class="performance-panel" style="grid-column: span 2;">
+                    <div class="control-section">
+                        <h3>Real-time Performance Data</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="chart-container">
+                                <div class="chart-title">GPU Utilization Timeline</div>
+                                <canvas id="perf-gpu-chart" width="400" height="200"></canvas>
+                            </div>
+                            <div class="chart-container">
+                                <div class="chart-title">Memory Bandwidth</div>
+                                <canvas id="perf-mem-chart" width="400" height="200"></canvas>
+                            </div>
+                            <div class="chart-container">
+                                <div class="chart-title">Power Consumption</div>
+                                <canvas id="perf-power-chart" width="400" height="200"></canvas>
+                            </div>
+                            <div class="chart-container">
+                                <div class="chart-title">Temperature Profile</div>
+                                <canvas id="perf-temp-chart" width="400" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="status-item">
-                <span id="frame-time">Frame Time: -- ms</span>
+        </div>
+
+        <!-- Settings Page -->
+        <div class="page-container" id="settings-page">
+            <div class="settings-grid">
+                <div class="settings-section">
+                    <h2>Visualization Settings</h2>
+                    <div class="control-section">
+                        <h3>Rendering Quality</h3>
+                        <label>Render Quality:</label>
+                        <select id="renderQuality">
+                            <option value="low">Low (Better Performance)</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="ultra">Ultra (Best Quality)</option>
+                        </select>
+                        
+                        <label><input type="checkbox" id="enableShadows" checked> Enable Shadows</label>
+                        <label><input type="checkbox" id="enableReflections" checked> Enable Reflections</label>
+                        <label><input type="checkbox" id="enableSSAO" checked> Screen Space Ambient Occlusion</label>
+                    </div>
+
+                    <div class="control-section">
+                        <h3>Animation Settings</h3>
+                        <label>Default Animation Speed:</label>
+                        <input type="range" id="defaultAnimSpeed" min="0.1" max="3.0" step="0.1" value="1.0">
+                        
+                        <label><input type="checkbox" id="autoRotate" checked> Auto Rotate Camera</label>
+                        <label><input type="checkbox" id="smoothTransitions" checked> Smooth Transitions</label>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h2>Data & Monitoring</h2>
+                    <div class="control-section">
+                        <h3>Update Intervals</h3>
+                        <label>Telemetry Update Rate (ms):</label>
+                        <input type="number" id="telemetryRate" value="100" min="50" max="1000">
+                        
+                        <label>Chart Update Rate (ms):</label>
+                        <input type="number" id="chartRate" value="500" min="100" max="2000">
+                    </div>
+
+                    <div class="control-section">
+                        <h3>Data Retention</h3>
+                        <label>History Length (samples):</label>
+                        <input type="number" id="historyLength" value="1000" min="100" max="10000">
+                        
+                        <label><input type="checkbox" id="autoExport"> Auto-export Data</label>
+                        <label><input type="checkbox" id="persistSettings" checked> Save Settings</label>
+                    </div>
+
+                    <div class="control-section">
+                        <h3>Actions</h3>
+                        <button id="saveSettings" class="full-width mb-md">Save Settings</button>
+                        <button id="resetSettings" class="outline full-width">Reset to Defaults</button>
+                    </div>
+                </div>
             </div>
-        </footer>
+        </div>
     </div>
 
     <script type="module" src="main.js"></script>
 </body>
 </html>
-
