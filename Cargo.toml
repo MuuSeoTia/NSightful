@@ -11,7 +11,12 @@ csv = "1"
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 nvml-wrapper = "0.10"
-tauri = { version = "1.7", features = ["api-all"] }
+tauri = { version = "1.7", features = ["fs-all", "shell-open", "window-close", "window-hide", "window-maximize", "window-minimize", "window-show", "window-start-dragging", "window-unmaximize", "window-unminimize"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockall = "0.12"
+serial_test = "3.0"
 
 [build-dependencies]
 tauri-build = { version = "1.5", features = [] }

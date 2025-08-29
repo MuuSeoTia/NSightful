@@ -1,4 +1,10 @@
-use anyhow::Result;
+//! NVML GPU telemetry and monitoring module
+//! 
+//! This module provides real-time GPU monitoring capabilities using NVIDIA's
+//! Management Library (NVML). It handles device discovery, telemetry collection,
+//! and streaming of GPU performance data.
+
+use anyhow::{Result, Context};
 use nvml_wrapper::{Nvml, device::Device};
 use serde::Serialize;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -6,7 +12,10 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, broadcast};
 use tauri::Window;
 
-// Structure for the telemetry stats
+/// Real-time telemetry data frame containing comprehensive GPU metrics
+/// 
+/// This structure captures all essential GPU performance data including
+/// utilization, memory usage, thermal data, and per-SM statistics.
 #[derive(Serialize, Clone, Debug)]
 pub struct TelemetryFrame {
     pub timestamp: u128,
@@ -26,7 +35,10 @@ pub struct TelemetryFrame {
     pub pcie_utilization: u32,
 }
 
-// Structure for GPU device information
+/// GPU device information and hardware specifications
+/// 
+/// Contains static information about the GPU hardware including
+/// architecture details, memory configuration, and compute capabilities.
 #[derive(Serialize, Clone, Debug)]
 pub struct GPUDevice {
     pub index: u32,
@@ -45,14 +57,20 @@ pub struct GPUDevice {
     pub boost_clock_mhz: u32,
 }
 
-// Structure for GPU info response
+/// Complete GPU information response structure
+/// 
+/// Combines device information with current telemetry data
+/// for comprehensive GPU status reporting.
 #[derive(Serialize)]
 pub struct GPUInfo {
     pub devices: Vec<GPUDevice>,
     pub current_telemetry: Option<TelemetryFrame>,
 }
 
-// Structure for detailed GPU architecture info
+/// Detailed GPU architecture specifications
+/// 
+/// Provides in-depth hardware architecture information including
+/// specialized cores, cache hierarchy, and performance characteristics.
 #[derive(Serialize)]
 pub struct GPUArchitecture {
     pub name: String,
@@ -76,32 +94,51 @@ pub struct GPUArchitecture {
     pub thermal_design_power_w: f32,
 }
 
-// function for detecting current ms
+/// Get current timestamp in milliseconds since Unix epoch
+/// 
+/// Returns the current system time as milliseconds for telemetry timestamping.
 fn now_ms() -> u128 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis()
 }
 
-// function for detecting devices and listing them
+/// Enumerate all available NVIDIA GPU devices
+/// 
+/// Discovers and returns a list of all NVIDIA GPU devices available
+/// on the system that can be monitored via NVML.
+/// 
+/// # Arguments
+/// * `nvml` - Initialized NVML instance
+/// 
+/// # Returns
+/// * `Result<Vec<Device>>` - Vector of GPU devices or error if enumeration fails
 pub fn list_devices(nvml: &Nvml) -> Result<Vec<Device>> {
     let count = nvml.device_count()?;
     (0..count).map(|i| nvml.device_by_index(i)).collect::<Result<Vec<_>, _>>().map_err(Into::into)
 }
 
-// Get comprehensive GPU information
+/// Retrieve comprehensive GPU information and current telemetry
+/// 
+/// Gathers complete GPU device information including hardware specifications
+/// and current performance telemetry for all available devices.
+/// 
+/// # Returns
+/// * `Result<GPUInfo>` - Complete GPU information or error if collection fails
 pub async fn get_gpu_info() -> Result<GPUInfo> {
-    let nvml = Nvml::init()?;
-    let devices = list_devices(&nvml)?;
+    let nvml = Nvml::init().context("Failed to initialize NVML")?;
+    let devices = list_devices(&nvml).context("Failed to enumerate GPU devices")?;
     
     let mut gpu_devices = Vec::new();
     let mut current_telemetry = None;
     
     for (index, device) in devices.iter().enumerate() {
-        let gpu_device = create_gpu_device_info(device, index as u32)?;
+        let gpu_device = create_gpu_device_info(device, index as u32)
+            .with_context(|| format!("Failed to create device info for GPU {}", index))?;
         gpu_devices.push(gpu_device);
         
         // Get current telemetry for the first device
         if index == 0 {
-            current_telemetry = Some(create_simple_telemetry_frame(device, index as u32)?);
+            current_telemetry = Some(create_simple_telemetry_frame(device, index as u32)
+                .context("Failed to create initial telemetry frame")?);
         }
     }
     
@@ -111,7 +148,17 @@ pub async fn get_gpu_info() -> Result<GPUInfo> {
     })
 }
 
-// Create detailed GPU device information
+/// Create detailed GPU device information structure
+/// 
+/// Extracts comprehensive hardware information from an NVML device
+/// including specifications, memory configuration, and clock speeds.
+/// 
+/// # Arguments
+/// * `device` - NVML device reference
+/// * `index` - Device index in the system
+/// 
+/// # Returns
+/// * `Result<GPUDevice>` - Populated device information or error
 fn create_gpu_device_info(device: &Device, index: u32) -> Result<GPUDevice> {
     let name = device.name()?;
     let uuid = device.uuid()?.to_string();
@@ -264,7 +311,16 @@ fn estimate_memory_type(name: &str) -> String {
     }
 }
 
-//function for retrieving nvml data in real time
+/// Stream NVML telemetry data in real-time
+/// 
+/// Continuously collects and prints GPU telemetry data to stdout
+/// at the specified interval. Minimum update period is 50ms.
+/// 
+/// # Arguments
+/// * `period_ms` - Update interval in milliseconds (minimum 50ms)
+/// 
+/// # Returns
+/// * `Result<()>` - Success or error if streaming fails
 pub async fn nvml_stream(mut period_ms: u64) -> Result<()> {
     if period_ms < 50 {
         period_ms = 50;
@@ -306,7 +362,19 @@ pub async fn nvml_stream(mut period_ms: u64) -> Result<()> {
     
 }
 
-// Enhanced streaming function with broadcast channel
+/// Enhanced streaming function with broadcast channel and Tauri integration
+/// 
+/// Streams telemetry data via broadcast channel and Tauri events for frontend updates.
+/// Supports graceful shutdown through the is_streaming flag.
+/// 
+/// # Arguments
+/// * `period_ms` - Update interval in milliseconds (minimum 50ms)
+/// * `sender` - Broadcast channel sender for telemetry data
+/// * `is_streaming` - Shared flag to control streaming lifecycle
+/// * `window` - Tauri window handle for frontend events
+/// 
+/// # Returns
+/// * `Result<()>` - Success or error if streaming fails
 pub async fn nvml_stream_with_broadcast(
     mut period_ms: u64,
     sender: broadcast::Sender<TelemetryFrame>,
@@ -450,9 +518,117 @@ fn estimate_memory_bandwidth(name: &str, memory_util: u32) -> f32 {
     max_bandwidth * (memory_util as f32 / 100.0)
 }
 
-// Estimate PCIe utilization
+/// Estimate PCIe utilization
 fn estimate_pcie_utilization(gpu_util: u32, memory_util: u32) -> u32 {
     // Simple heuristic: PCIe usage correlates with data movement
     ((gpu_util + memory_util) as f32 * 0.3) as u32
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_now_ms_returns_valid_timestamp() {
+        let timestamp = now_ms();
+        // Should be a reasonable timestamp (after 2020)
+        assert!(timestamp > 1577836800000); // Jan 1, 2020 in ms
+    }
+    
+    #[test]
+    fn test_estimate_gpu_specs_rtx_4090() {
+        let (sm_count, cores_per_sm) = estimate_gpu_specs("RTX 4090");
+        assert_eq!(sm_count, 128);
+        assert_eq!(cores_per_sm, 128);
+    }
+    
+    #[test]
+    fn test_estimate_gpu_specs_unknown_card() {
+        let (sm_count, cores_per_sm) = estimate_gpu_specs("Unknown GPU");
+        assert_eq!(sm_count, 32);
+        assert_eq!(cores_per_sm, 128);
+    }
+    
+    #[test]
+    fn test_estimate_l2_cache_rtx_40_series() {
+        let cache_size = estimate_l2_cache("RTX 4080");
+        assert_eq!(cache_size, 72);
+    }
+    
+    #[test]
+    fn test_estimate_memory_bus_width() {
+        assert_eq!(estimate_memory_bus_width("RTX 4090"), 384);
+        assert_eq!(estimate_memory_bus_width("RTX 4080"), 256);
+        assert_eq!(estimate_memory_bus_width("Unknown"), 256);
+    }
+    
+    #[test]
+    fn test_estimate_specialized_cores() {
+        let (tensor, rt) = estimate_specialized_cores("RTX 4090");
+        assert_eq!(tensor, 4);
+        assert_eq!(rt, 2);
+        
+        let (tensor, rt) = estimate_specialized_cores("GTX 1080");
+        assert_eq!(tensor, 0);
+        assert_eq!(rt, 0);
+    }
+    
+    #[test]
+    fn test_estimate_memory_type() {
+        assert_eq!(estimate_memory_type("RTX 4090"), "GDDR6X");
+        assert_eq!(estimate_memory_type("RTX 3080"), "GDDR6X");
+        assert_eq!(estimate_memory_type("GTX 1080"), "GDDR5");
+    }
+    
+    #[test]
+    fn test_estimate_memory_bandwidth() {
+        let bandwidth = estimate_memory_bandwidth("RTX 4090", 50);
+        assert_eq!(bandwidth, 504.0); // 1008 * 0.5
+        
+        let bandwidth = estimate_memory_bandwidth("Unknown", 100);
+        assert_eq!(bandwidth, 500.0);
+    }
+    
+    #[test]
+    fn test_estimate_pcie_utilization() {
+        assert_eq!(estimate_pcie_utilization(50, 30), 24); // (50+30)*0.3 = 24
+        assert_eq!(estimate_pcie_utilization(0, 0), 0);
+        assert_eq!(estimate_pcie_utilization(100, 100), 60);
+    }
+    
+    #[test]
+    fn test_generate_sm_utilizations() {
+        let utilizations = generate_sm_utilizations(80, 4);
+        assert_eq!(utilizations.len(), 4);
+        
+        // All values should be between 0.0 and 1.0
+        for util in utilizations {
+            assert!(util >= 0.0 && util <= 1.0);
+        }
+    }
+    
+    #[test]
+    fn test_telemetry_frame_serialization() {
+        let frame = TelemetryFrame {
+            timestamp: now_ms(),
+            device_index: 0,
+            name: "Test GPU".to_string(),
+            util_gpu: 50,
+            util_memory: 60,
+            memory_used_mb: 8192,
+            memory_total_mb: 24576,
+            sm_clock_mhz: 1500,
+            memory_clock_mhz: 7000,
+            temperature_c: 65,
+            power_w: 250.0,
+            fan_speed_percent: 70,
+            sm_utilizations: vec![0.5, 0.6, 0.4],
+            memory_bandwidth_gbps: 500.0,
+            pcie_utilization: 30,
+        };
+        
+        // Should serialize without errors
+        let serialized = serde_json::to_string(&frame);
+        assert!(serialized.is_ok());
+    }
+}

@@ -1,11 +1,26 @@
-// Navigation Manager for Multi-Page Application
+/**
+ * Navigation Manager for Multi-Page Application
+ * 
+ * Manages page transitions, route handling, and component lifecycle
+ * for the multi-page GPU visualization interface.
+ */
 export class NavigationManager {
+    /**
+     * Initialize navigation manager
+     * Sets up page registry and default page state
+     */
     constructor() {
         this.currentPage = 'dashboard';
         this.pages = new Map();
         this.initialized = false;
     }
 
+    /**
+     * Initialize navigation system
+     * 
+     * Sets up navigation event handlers, registers pages,
+     * and displays the default page.
+     */
     initialize() {
         this.setupNavigation();
         this.registerPages();
@@ -41,6 +56,13 @@ export class NavigationManager {
         });
     }
 
+    /**
+     * Show specified page and handle transitions
+     * 
+     * Manages page visibility, active states, and component initialization.
+     * 
+     * @param {string} pageId - ID of the page to display
+     */
     showPage(pageId) {
         if (!this.pages.has(pageId)) {
             console.error(`Page "${pageId}" not found`);
@@ -418,3 +440,5 @@ export class NavigationManager {
         return this.pages.get(pageId)?.initialized || false;
     }
 }
+
+

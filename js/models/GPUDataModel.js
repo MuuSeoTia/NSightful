@@ -1,4 +1,10 @@
-// GPU Data Model - Handles all data operations and state management
+/**
+ * GPU Data Model - Handles all data operations and state management
+ * 
+ * This class manages GPU device information, real-time telemetry data,
+ * and provides an interface between the Tauri backend and frontend components.
+ * Supports both native Tauri mode and web mock mode for development.
+ */
 import { TestDataLoader } from '../utils/TestDataLoader.js';
 
 // Check if we're running in Tauri environment
@@ -6,7 +12,16 @@ const isTauriAvailable = () => {
     return typeof window !== 'undefined' && window.__TAURI_IPC__;
 };
 
-// Mock invoke function for web mode
+/**
+ * Mock invoke function for web development mode
+ * 
+ * Provides simulated GPU data when Tauri API is not available,
+ * enabling frontend development without the native backend.
+ * 
+ * @param {string} cmd - Command name
+ * @param {Object} args - Command arguments
+ * @returns {Promise<string>} Mock response data
+ */
 const mockInvoke = async (cmd, args) => {
     console.log(`Mock Tauri command: ${cmd}`, args);
     
@@ -35,7 +50,14 @@ const mockInvoke = async (cmd, args) => {
     }
 };
 
-// Dynamic import and safe invoke function
+/**
+ * Dynamic import and safe invoke function
+ * 
+ * Attempts to import the Tauri API and falls back to mock data
+ * if running in web mode or if Tauri is unavailable.
+ * 
+ * @returns {Promise<Function>} Invoke function (real or mock)
+ */
 const getSafeInvoke = async () => {
     if (isTauriAvailable()) {
         try {
@@ -49,7 +71,17 @@ const getSafeInvoke = async () => {
     return mockInvoke;
 };
 
+/**
+ * GPU Data Model Class
+ * 
+ * Manages GPU monitoring data, device information, and real-time telemetry.
+ * Provides event-driven updates for MVC architecture communication.
+ */
 export class GPUDataModel {
+    /**
+     * Initialize the GPU data model
+     * Sets up state management, test data loader, and event system
+     */
     constructor() {
         // Initialize test data loader
         this.testDataLoader = new TestDataLoader();
@@ -114,7 +146,15 @@ export class GPUDataModel {
         this.dataProcessor = new GPUDataProcessor();
     }
 
-    // Event system for MVC communication
+    /**
+     * Event system for MVC communication
+     * 
+     * Registers event listeners for data model changes.
+     * Supports multiple listeners per event type.
+     * 
+     * @param {string} event - Event type to listen for
+     * @param {Function} callback - Function to call when event fires
+     */
     addEventListener(event, callback) {
         if (!this.listeners.has(event)) {
             this.listeners.set(event, []);
@@ -122,6 +162,12 @@ export class GPUDataModel {
         this.listeners.get(event).push(callback);
     }
 
+    /**
+     * Remove event listener
+     * 
+     * @param {string} event - Event type
+     * @param {Function} callback - Callback function to remove
+     */
     removeEventListener(event, callback) {
         if (this.listeners.has(event)) {
             const callbacks = this.listeners.get(event);
@@ -132,13 +178,26 @@ export class GPUDataModel {
         }
     }
 
+    /**
+     * Emit event to registered listeners
+     * 
+     * @param {string} event - Event type to emit
+     * @param {*} data - Data to pass to event listeners
+     */
     emit(event, data) {
         if (this.listeners.has(event)) {
             this.listeners.get(event).forEach(callback => callback(data));
         }
     }
 
-    // GPU Connection and Device Management
+    /**
+     * GPU Connection and Device Management
+     * 
+     * Establishes connection to GPU backend and initializes device discovery.
+     * Attempts to retrieve device information and current telemetry data.
+     * 
+     * @returns {Promise<boolean>} Success status of GPU connection
+     */
     async connectToGPU() {
         this.state.connecting = true;
         this.emit('connectionStateChanged', { connecting: true });
@@ -181,6 +240,14 @@ export class GPUDataModel {
         }
     }
 
+    /**
+     * Load detailed GPU architecture information
+     * 
+     * Retrieves comprehensive hardware specifications including
+     * core counts, memory configuration, and performance characteristics.
+     * 
+     * @returns {Promise<boolean>} Success status of architecture loading
+     */
     async loadGPUArchitecture() {
         if (!this.state.currentDevice) return;
 
@@ -510,6 +577,14 @@ class GPUDataProcessor {
     }
 
     // Test Data Integration Methods
+    /**
+     * Load test data for development and demonstration
+     * 
+     * Loads predefined GPU performance scenarios for testing
+     * visualization components without real hardware.
+     * 
+     * @returns {Promise<boolean>} Success status of test data loading
+     */
     async loadTestData() {
         try {
             await this.testDataLoader.loadTestData();
@@ -522,6 +597,15 @@ class GPUDataProcessor {
         }
     }
 
+    /**
+     * Load and start a specific test scenario
+     * 
+     * Loads predefined performance scenarios (gaming, ML, crypto, raytracing)
+     * and starts real-time simulation for visualization testing.
+     * 
+     * @param {string} scenarioName - Name of the scenario to load
+     * @returns {Promise<boolean>} Success status of scenario loading
+     */
     async loadTestScenario(scenarioName) {
         try {
             // Stop any existing simulation
@@ -551,6 +635,11 @@ class GPUDataProcessor {
         }
     }
 
+    /**
+     * Stop current test scenario simulation
+     * 
+     * Terminates any running test scenario and cleans up simulation resources.
+     */
     stopTestScenario() {
         if (this.realtimeSimulationId) {
             this.testDataLoader.stopRealtimeSimulation(this.realtimeSimulationId);
@@ -558,6 +647,13 @@ class GPUDataProcessor {
         }
     }
 
+    /**
+     * Handle incoming test activity data
+     * 
+     * Processes simulated GPU activity data and updates the model state.
+     * 
+     * @param {Object} activityData - Simulated GPU activity metrics
+     */
     handleTestActivityData(activityData) {
         // Convert test activity data to telemetry format
         const telemetryData = {
@@ -591,6 +687,11 @@ class GPUDataProcessor {
         }
     }
 
+    /**
+     * Get list of available test scenarios
+     * 
+     * @returns {Array} Array of scenario objects with id, name, and description
+     */
     getAvailableTestScenarios() {
         return [
             { id: 'gaming', name: 'Gaming Workload', description: 'Mixed compute and ray tracing' },
@@ -604,6 +705,11 @@ class GPUDataProcessor {
         return this.testDataLoader.getReportByName(reportName);
     }
 
+    /**
+     * Export collected test data for analysis
+     * 
+     * @returns {Object|null} Exported performance data or null if no data available
+     */
     exportTestData() {
         if (this.state.performanceHistory.length > 0) {
             return this.testDataLoader.exportActivityLog(this.state.performanceHistory);
