@@ -76,6 +76,13 @@ class NSightfulApp {
         document.addEventListener('nsightful:resetView', () => {
             this.resetView();
         });
+        
+        // Add telemetry update listener
+        if (this.dataModel) {
+            this.dataModel.addEventListener('telemetryUpdate', (data) => {
+                this.updateDashboard(data);
+            });
+        }
 
         // Visualization events
         document.addEventListener('nsightful:initializeFullVisualization', () => {
@@ -113,8 +120,19 @@ class NSightfulApp {
         // Initialize dashboard visualization
         await this.initializeDashboardVisualization();
         
-        // Load test data
-        await this.dataModel.loadTestData();
+        // Load test data (with error handling)
+        try {
+            console.log('✅ Loading test data...');
+            // Simply call the method - it should exist
+            await this.dataModel.loadTestData();
+            console.log('✅ Test data loaded successfully');
+        } catch (error) {
+            console.warn('⚠️ Failed to load test data, continuing without it:', error);
+            // Initialize a basic fallback
+            if (!this.testDataLoader) {
+                this.testDataLoader = new TestDataLoader();
+            }
+        }
         
         // Start UI updates
         this.startUIUpdates();
@@ -130,6 +148,8 @@ class NSightfulApp {
             console.log('🎨 Dashboard visualization initialized');
         } catch (error) {
             console.error('Failed to initialize dashboard visualization:', error);
+            // Continue without 3D visualization for now
+            this.visualization = null;
         }
     }
 
@@ -174,6 +194,18 @@ class NSightfulApp {
 
     async loadScenario(scenarioName) {
         try {
+            if (!this.dataModel) {
+                console.error('Data model not initialized');
+                this.showNotification('Application not ready. Please wait...', 'warning');
+                return;
+            }
+            
+            if (!this.dataModel.loadTestScenario) {
+                console.error('loadTestScenario method not available');
+                this.showNotification('Test scenario loading not available', 'error');
+                return;
+            }
+            
             this.showNotification(`Loading ${scenarioName} scenario...`, 'info');
             const success = await this.dataModel.loadTestScenario(scenarioName);
             
@@ -185,7 +217,7 @@ class NSightfulApp {
             }
         } catch (error) {
             console.error('Failed to load scenario:', error);
-            this.showNotification('Failed to load scenario', 'error');
+            this.showNotification('Failed to load scenario: ' + error.message, 'error');
         }
     }
 
@@ -198,6 +230,32 @@ class NSightfulApp {
         this.showNotification('Monitoring started', 'success');
     }
 
+    updateDashboard(telemetryData) {
+        // Update dashboard stats with real-time data
+        if (telemetryData) {
+            const updateElement = (id, value, unit = '') => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = value + unit;
+            };
+            
+            updateElement('gpu-util-stat', telemetryData.util_gpu, '%');
+            updateElement('memory-util-stat', telemetryData.util_memory, '%');
+            updateElement('temp-stat', telemetryData.temperature_c, '°C');
+            updateElement('power-stat', Math.round(telemetryData.power_w), 'W');
+            updateElement('clock-stat', telemetryData.sm_clock_mhz, 'MHz');
+            
+            // Update overlay stats too
+            updateElement('overlay-gpu', telemetryData.util_gpu + '%');
+            updateElement('overlay-mem', telemetryData.util_memory + '%');
+            updateElement('overlay-temp', telemetryData.temperature_c + '°C');
+            updateElement('overlay-pwr', Math.round(telemetryData.power_w) + 'W');
+            
+            // Update active SMs count (simplified)
+            const activeSMs = Math.round((telemetryData.util_gpu / 100) * 128);
+            updateElement('sm-stat', activeSMs, '/128');
+        }
+    }
+    
     resetView() {
         if (this.visualization) {
             this.visualization.setCameraMode('overview');

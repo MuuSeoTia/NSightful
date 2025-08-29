@@ -7,7 +7,7 @@ export class TestDataLoader {
 
     async loadTestData() {
         try {
-            const response = await fetch('/test-data/nsight-reports.json');
+            const response = await fetch('./test-data/nsight-reports.json');
             this.testData = await response.json();
             console.log('Test data loaded successfully:', this.testData);
             return this.testData;
@@ -266,3 +266,5 @@ export class TestDataLoader {
         return JSON.stringify(exportData, null, 2);
     }
 }
+
+

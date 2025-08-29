@@ -30,20 +30,93 @@ const mockInvoke = async (cmd, args) => {
             return JSON.stringify({
                 status: 'connected',
                 gpus: [{
-                    id: 0,
+                    index: 0,
                     name: 'Mock GPU (RTX 4090)',
-                    memory_total: 24 * 1024 * 1024 * 1024,
-                    memory_used: 8 * 1024 * 1024 * 1024
-                }]
+                    memory_total_mb: 24576,
+                    memory_used_mb: 8192,
+                    uuid: 'mock-gpu-uuid',
+                    pci_info: 'Mock PCI Info',
+                    compute_capability: '8.9',
+                    sm_count: 128,
+                    cores_per_sm: 128
+                }],
+                telemetry: {
+                    timestamp: Date.now(),
+                    device_index: 0,
+                    name: 'Mock GPU (RTX 4090)',
+                    util_gpu: Math.floor(Math.random() * 60) + 20, // 20-80%
+                    util_memory: Math.floor(Math.random() * 40) + 20, // 20-60%
+                    memory_used_mb: 8192 + Math.floor(Math.random() * 4096),
+                    memory_total_mb: 24576,
+                    sm_clock_mhz: 1800 + Math.floor(Math.random() * 400),
+                    memory_clock_mhz: 7000 + Math.floor(Math.random() * 1000),
+                    temperature_c: 55 + Math.floor(Math.random() * 20),
+                    power_w: 200 + Math.floor(Math.random() * 150),
+                    fan_speed_percent: 40 + Math.floor(Math.random() * 40),
+                    sm_utilizations: Array.from({length: 128}, () => Math.random()),
+                    memory_bandwidth_gbps: 500 + Math.floor(Math.random() * 300),
+                    pcie_utilization: Math.floor(Math.random() * 30) + 10
+                }
             });
         case 'start_nvml_stream':
+            // Start mock telemetry updates
+            if (!window.mockTelemetryInterval) {
+                window.mockTelemetryInterval = setInterval(() => {
+                    if (window.mockGPUConnected) {
+                        window.dispatchEvent(new CustomEvent('mock-telemetry-update', {
+                            detail: {
+                                timestamp: Date.now(),
+                                device_index: 0,
+                                name: 'Mock GPU (RTX 4090)',
+                                util_gpu: Math.floor(Math.random() * 60) + 20,
+                                util_memory: Math.floor(Math.random() * 40) + 20,
+                                memory_used_mb: 8192 + Math.floor(Math.random() * 4096),
+                                memory_total_mb: 24576,
+                                sm_clock_mhz: 1800 + Math.floor(Math.random() * 400),
+                                memory_clock_mhz: 7000 + Math.floor(Math.random() * 1000),
+                                temperature_c: 55 + Math.floor(Math.random() * 20),
+                                power_w: 200 + Math.floor(Math.random() * 150),
+                                fan_speed_percent: 40 + Math.floor(Math.random() * 40),
+                                sm_utilizations: Array.from({length: 128}, () => Math.random()),
+                                memory_bandwidth_gbps: 500 + Math.floor(Math.random() * 300),
+                                pcie_utilization: Math.floor(Math.random() * 30) + 10
+                            }
+                        }));
+                    }
+                }, args?.period_ms || 100);
+            }
             return 'Mock stream started';
+        case 'stop_nvml_stream':
+            if (window.mockTelemetryInterval) {
+                clearInterval(window.mockTelemetryInterval);
+                window.mockTelemetryInterval = null;
+            }
+            return 'Mock stream stopped';
+        case 'get_stream_status':
+            return JSON.stringify({
+                streaming: !!window.mockTelemetryInterval
+            });
         case 'get_gpu_architecture':
             return JSON.stringify({
                 name: 'Mock RTX 4090',
-                smCount: 128,
-                coresPerSM: 128,
-                memoryBusWidth: 384
+                compute_capability: '8.9',
+                sm_count: 128,
+                cores_per_sm: 128,
+                tensor_cores_per_sm: 4,
+                rt_cores_per_sm: 2,
+                memory_total_gb: 24,
+                memory_bus_width: 384,
+                memory_type: 'GDDR6X',
+                l1_cache_size_kb: 128,
+                l2_cache_size_mb: 72,
+                max_threads_per_sm: 1536,
+                max_threads_per_block: 1024,
+                warp_size: 32,
+                base_clock_mhz: 1440,
+                boost_clock_mhz: 2520,
+                memory_clock_mhz: 10501,
+                max_power_w: 450,
+                thermal_design_power_w: 450
             });
         default:
             return 'Mock response';
@@ -210,9 +283,22 @@ export class GPUDataModel {
             this.state.devices = data.gpus || [];
             this.state.connected = data.status === 'connected';
             
+            // Update initial telemetry if available
+            if (data.telemetry) {
+                this.updateTelemetryData(data.telemetry);
+            }
+            
             if (this.state.devices.length > 0) {
                 this.state.currentDevice = this.state.devices[0];
                 await this.loadGPUArchitecture();
+            }
+            
+            // Set up mock telemetry listening if in mock mode
+            if (!isTauriAvailable() && this.state.connected) {
+                this.setupMockTelemetryListener();
+                window.mockGPUConnected = true;
+                // Start mock streaming
+                await safeInvoke('start_nvml_stream', { period_ms: 100 });
             }
 
             this.state.connecting = false;
@@ -236,8 +322,27 @@ export class GPUDataModel {
                 error: error.message
             });
             
-            throw error;
+            return false;
         }
+    }
+
+    /**
+     * Setup mock telemetry event listener for development mode
+     */
+    setupMockTelemetryListener() {
+        if (this.mockTelemetryListener) {
+            window.removeEventListener('mock-telemetry-update', this.mockTelemetryListener);
+        }
+        
+        this.mockTelemetryListener = (event) => {
+            if (this.state.connected) {
+                this.updateTelemetryData(event.detail);
+                this.emit('telemetryUpdate', event.detail);
+            }
+        };
+        
+        window.addEventListener('mock-telemetry-update', this.mockTelemetryListener);
+        console.log('Mock telemetry listener setup complete');
     }
 
     /**
