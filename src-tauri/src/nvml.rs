@@ -111,7 +111,7 @@ fn now_ms() -> u128 {
 /// 
 /// # Returns
 /// * `Result<Vec<Device>>` - Vector of GPU devices or error if enumeration fails
-pub fn list_devices(nvml: &Nvml) -> Result<Vec<Device>> {
+pub fn list_devices(nvml: &Nvml) -> Result<Vec<Device<'_>>> {
     let count = nvml.device_count()?;
     (0..count).map(|i| nvml.device_by_index(i)).collect::<Result<Vec<_>, _>>().map_err(Into::into)
 }
@@ -174,7 +174,7 @@ fn create_gpu_device_info(device: &Device, index: u32) -> Result<GPUDevice> {
     
     // Get clock information
     let sm_clock = device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Graphics).unwrap_or(0);
-    let memory_clock = device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Memory).unwrap_or(0);
+    let _memory_clock = device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Memory).unwrap_or(0);
     
     // Estimate cores based on GPU name (this is approximate)
     let (sm_count, cores_per_sm) = estimate_gpu_specs(&name);
@@ -722,7 +722,7 @@ pub async fn start_interval_recording(
     }
     
     // Start recording task
-    let session_id_clone = session_id.clone();
+    let _session_id_clone = session_id.clone();
     tokio::spawn(async move {
         if let Err(e) = run_interval_recording(duration_seconds, sample_rate_hz, metrics, output_file).await {
             eprintln!("Recording error: {}", e);
@@ -779,7 +779,7 @@ pub async fn get_recording_status() -> Result<RecordingStatus> {
 async fn run_interval_recording(
     duration_seconds: u64,
     sample_rate_hz: u64,
-    metrics: Vec<String>,
+    _metrics: Vec<String>,
     output_file: String
 ) -> Result<()> {
     // Create output directory if it doesn't exist
