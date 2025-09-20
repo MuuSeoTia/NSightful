@@ -35,8 +35,7 @@
     },
     "bundle": {
       "active": false,
-      "identifier": "com.nsightful.gpuviz",
-      "icon": []
+      "identifier": "com.nsightful.gpuviz"
     },
     "security": {
       "csp": null
