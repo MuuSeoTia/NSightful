@@ -11,7 +11,7 @@ csv = "1"
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 nvml-wrapper = "0.10"
-tauri = { version = "1.7", features = ["fs-all", "shell-open", "window-close", "window-hide", "window-maximize", "window-minimize", "window-show", "window-start-dragging", "window-unmaximize", "window-unminimize"] }
+tauri = { version = "1.5", features = [ "window-unmaximize", "window-unminimize", "window-close", "fs-all", "window-start-dragging", "window-show", "window-maximize", "window-minimize", "shell-open", "window-hide"] }
 
 [dev-dependencies]
 tokio-test = "0.4"

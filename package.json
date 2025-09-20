@@ -28,13 +28,14 @@
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "lint": "echo 'No linter configured yet'",
     "format": "echo 'No formatter configured yet'",
-    "clean": "rimraf dist target node_modules/.cache",
-    "prebuild": "npm run clean",
+    "clean": "rimraf dist src-tauri/target node_modules/.cache",
     "postinstall": "echo 'Dependencies installed successfully'"
   },
   "dependencies": {
@@ -45,10 +46,11 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.5.0",
-    "vite": "^5.0.0",
-    "vitest": "^1.0.0",
-    "@vitest/ui": "^1.0.0",
     "@vitest/coverage-v8": "^1.0.0",
-    "jsdom": "^23.0.0"
+    "@vitest/ui": "^1.0.0",
+    "jsdom": "^23.0.0",
+    "rimraf": "^6.0.1",
+    "vite": "^5.0.0",
+    "vitest": "^1.0.0"
   }
 }

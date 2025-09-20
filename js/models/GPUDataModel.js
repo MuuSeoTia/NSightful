@@ -822,3 +822,5 @@ class GPUDataProcessor {
         return null;
     }
 }
+
+export default GPUDataModel;
