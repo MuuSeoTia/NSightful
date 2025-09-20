@@ -146,6 +146,85 @@ async fn get_gpu_architecture() -> Result<String, String> {
     }
 }
 
+/// Tauri command to start GPU interval recording
+/// 
+/// Initiates recording of GPU performance metrics for a specified duration
+/// at the given sample rate. Data is stored for later analysis.
+/// 
+/// # Arguments
+/// * `duration_seconds` - Recording duration in seconds
+/// * `sample_rate_hz` - Sampling frequency in Hz
+/// * `metrics` - List of metrics to record
+/// 
+/// # Returns
+/// * `Result<String, String>` - Recording session ID or error message
+#[command]
+async fn start_gpu_recording(
+    duration_seconds: u64,
+    sample_rate_hz: u64,
+    metrics: Vec<String>,
+) -> Result<String, String> {
+    match nvml::start_interval_recording(duration_seconds, sample_rate_hz, metrics).await {
+        Ok(recording_id) => Ok(recording_id),
+        Err(e) => Err(format!("Failed to start GPU recording: {}", e))
+    }
+}
+
+/// Tauri command to stop GPU interval recording
+/// 
+/// Stops the current recording session and returns the path to recorded data.
+/// 
+/// # Returns
+/// * `Result<String, String>` - Path to recorded data file or error message
+#[command]
+async fn stop_gpu_recording() -> Result<String, String> {
+    match nvml::stop_interval_recording().await {
+        Ok(data_path) => Ok(data_path),
+        Err(e) => Err(format!("Failed to stop GPU recording: {}", e))
+    }
+}
+
+/// Tauri command to get current recording status
+/// 
+/// Returns information about any active recording session including
+/// progress, duration remaining, and metrics being collected.
+/// 
+/// # Returns
+/// * `Result<String, String>` - JSON recording status or error message
+#[command]
+async fn get_recording_status() -> Result<String, String> {
+    match nvml::get_recording_status().await {
+        Ok(status) => {
+            let json = serde_json::to_string(&status)
+                .map_err(|e| format!("Failed to serialize recording status: {}", e))?;
+            Ok(json)
+        }
+        Err(e) => Err(format!("Failed to get recording status: {}", e))
+    }
+}
+
+/// Tauri command to process NSight report files
+/// 
+/// Analyzes NSight Compute or Systems report files and extracts
+/// performance insights, bottlenecks, and optimization recommendations.
+/// 
+/// # Arguments
+/// * `file_path` - Path to the NSight report file
+/// 
+/// # Returns
+/// * `Result<String, String>` - JSON analysis results or error message
+#[command]
+async fn process_nsight_report(file_path: String) -> Result<String, String> {
+    match nvml::process_nsight_report(file_path).await {
+        Ok(analysis) => {
+            let json = serde_json::to_string(&analysis)
+                .map_err(|e| format!("Failed to serialize analysis: {}", e))?;
+            Ok(json)
+        }
+        Err(e) => Err(format!("Failed to process NSight report: {}", e))
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(TelemetryState::default())
@@ -154,7 +233,11 @@ fn main() {
             start_nvml_stream,
             stop_nvml_stream,
             get_stream_status,
-            get_gpu_architecture
+            get_gpu_architecture,
+            start_gpu_recording,
+            stop_gpu_recording,
+            get_recording_status,
+            process_nsight_report
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

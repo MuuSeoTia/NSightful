@@ -303,42 +303,81 @@ class NSightfulApp {
 
     async processNSightReport(file) {
         try {
-            // This will be handled by the Rust backend
             console.log('⚙️ Processing NSight report:', file.name);
             
-            // TODO: Send file to Rust backend for processing
-            // const result = await invoke('process_nsight_report', { file });
+            // Get Tauri invoke function
+            const safeInvoke = await getSafeInvoke();
             
-            // For now, simulate processing
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // For file upload, we need to save the file first (in a real implementation)
+            // For now, just use the file name as a placeholder path
+            const filePath = file.name;
             
-            console.log('✅ NSight report processed successfully');
+            const result = await safeInvoke('process_nsight_report', { filePath });
+            const analysis = JSON.parse(result);
+            
+            console.log('✅ NSight report processed successfully:', analysis);
+            
+            // Display analysis results (could be shown in a dedicated UI)
+            this.displayNSightAnalysis(analysis);
+            
         } catch (error) {
             console.error('❌ Failed to process NSight report:', error);
             this.showError('Failed to process NSight report: ' + error.message);
         }
     }
     
+    displayNSightAnalysis(analysis) {
+        // Create a simple display of the analysis results
+        const summary = `
+NSight Analysis Results:
+• GPU: ${analysis.gpu_name}
+• Report Type: ${analysis.report_type}
+• Kernels Analyzed: ${analysis.kernels.length}
+• Average SM Utilization: ${analysis.performance_summary.average_sm_utilization.toFixed(1)}%
+• Memory Throughput: ${analysis.performance_summary.memory_throughput_gbps.toFixed(1)} GB/s
+• Main Bottleneck: ${analysis.performance_summary.bottleneck_analysis}
+
+Top Recommendations:
+${analysis.recommendations.slice(0, 3).map(rec => `• ${rec}`).join('\n')}
+        `;
+        
+        console.log(summary);
+        this.showInfo('NSight analysis completed. Check console for detailed results.');
+    }
+    
     async startRecording() {
         const duration = document.getElementById('recordDuration')?.value || 30;
         const sampleRate = document.getElementById('sampleRate')?.value || 50;
         
-        console.log(`⏺️ Starting GPU recording: ${duration}s at ${sampleRate}Hz`);
+        // Get selected metrics
+        const metricsCheckboxes = document.querySelectorAll('#recordModal .checkbox-group input[type="checkbox"]:checked');
+        const metrics = Array.from(metricsCheckboxes).map(cb => cb.parentNode.textContent.trim());
+        
+        console.log(`⏺️ Starting GPU recording: ${duration}s at ${sampleRate}Hz`, metrics);
         
         try {
-            this.isRecording = true;
             this.hideRecordModal();
+            
+            // Get Tauri invoke function
+            const safeInvoke = await getSafeInvoke();
+            
+            // Start actual GPU recording via Rust backend
+            const sessionId = await safeInvoke('start_gpu_recording', {
+                durationSeconds: parseInt(duration),
+                sampleRateHz: parseInt(sampleRate),
+                metrics: metrics
+            });
+            
+            this.isRecording = true;
+            this.recordingSessionId = sessionId;
             
             // Update UI to show recording state
             this.updateRecordingUI(true);
             
-            // TODO: Start actual GPU recording via Rust backend
-            // await invoke('start_gpu_recording', { duration, sampleRate });
+            // Start monitoring recording status
+            this.startRecordingMonitor();
             
-            // For now, simulate recording
-            setTimeout(() => {
-                this.stopRecording();
-            }, duration * 1000);
+            this.showSuccess(`Recording started! Session ID: ${sessionId}`);
             
         } catch (error) {
             console.error('❌ Failed to start recording:', error);
@@ -347,11 +386,63 @@ class NSightfulApp {
         }
     }
     
-    stopRecording() {
+    async stopRecording() {
+        if (!this.isRecording) return;
+        
         console.log('⏹️ Stopping GPU recording');
-        this.isRecording = false;
-        this.updateRecordingUI(false);
-        this.showSuccess('GPU recording completed successfully!');
+        
+        try {
+            const safeInvoke = await getSafeInvoke();
+            const outputFile = await safeInvoke('stop_gpu_recording');
+            
+            this.isRecording = false;
+            this.recordingSessionId = null;
+            this.updateRecordingUI(false);
+            
+            // Stop monitoring
+            if (this.recordingMonitorInterval) {
+                clearInterval(this.recordingMonitorInterval);
+                this.recordingMonitorInterval = null;
+            }
+            
+            this.showSuccess(`GPU recording completed! Data saved to: ${outputFile}`);
+            
+        } catch (error) {
+            console.error('❌ Failed to stop recording:', error);
+            this.showError('Failed to stop recording: ' + error.message);
+        }
+    }
+    
+    startRecordingMonitor() {
+        // Monitor recording status every second
+        this.recordingMonitorInterval = setInterval(async () => {
+            try {
+                const safeInvoke = await getSafeInvoke();
+                const statusJson = await safeInvoke('get_recording_status');
+                const status = JSON.parse(statusJson);
+                
+                if (!status.is_recording && this.isRecording) {
+                    // Recording finished automatically
+                    this.stopRecording();
+                } else if (status.is_recording) {
+                    // Update progress
+                    this.updateRecordingProgress(status);
+                }
+                
+            } catch (error) {
+                console.error('Failed to get recording status:', error);
+            }
+        }, 1000);
+    }
+    
+    updateRecordingProgress(status) {
+        const recordingStatus = document.getElementById('recordingStatus');
+        const statusText = recordingStatus?.querySelector('.status-text');
+        
+        if (statusText && status.elapsed_seconds !== undefined && status.duration_seconds) {
+            const progress = Math.round((status.elapsed_seconds / status.duration_seconds) * 100);
+            statusText.textContent = `Recording... ${status.elapsed_seconds}/${status.duration_seconds}s (${progress}%)`;
+        }
     }
     
     updateRecordingUI(isRecording) {

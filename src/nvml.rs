@@ -632,3 +632,262 @@ mod tests {
         assert!(serialized.is_ok());
     }
 }
+
+/// Recording status information.
+#[derive(Serialize, Clone, Debug)]
+pub struct RecordingStatus {
+    pub is_recording: bool,
+    pub session_id: Option<String>,
+    pub duration_seconds: Option<u64>,
+    pub elapsed_seconds: Option<u64>,
+    pub sample_rate_hz: Option<u64>,
+    pub metrics: Vec<String>,
+    pub samples_collected: u64,
+    pub output_file: Option<String>,
+}
+
+/// NSight report analysis results.
+#[derive(Serialize, Clone, Debug)]
+pub struct NSightAnalysis {
+    pub report_type: String,
+    pub gpu_name: String,
+    pub kernels: Vec<KernelAnalysis>,
+    pub bottlenecks: Vec<String>,
+    pub recommendations: Vec<String>,
+    pub performance_summary: PerformanceSummary,
+}
+
+/// Individual kernel analysis from NSight report.
+#[derive(Serialize, Clone, Debug)]
+pub struct KernelAnalysis {
+    pub name: String,
+    pub duration_ms: f64,
+    pub grid_size: (u32, u32, u32),
+    pub block_size: (u32, u32, u32),
+    pub registers_per_thread: u32,
+    pub shared_memory_bytes: u64,
+    pub occupancy_percent: f64,
+    pub sm_efficiency: f64,
+    pub memory_efficiency: f64,
+}
+
+/// Performance summary from NSight analysis.
+#[derive(Serialize, Clone, Debug)]
+pub struct PerformanceSummary {
+    pub total_gpu_time_ms: f64,
+    pub average_sm_utilization: f64,
+    pub memory_throughput_gbps: f64,
+    pub compute_throughput_percent: f64,
+    pub bottleneck_analysis: String,
+}
+
+// Global recording state
+static RECORDING_STATE: std::sync::RwLock<Option<RecordingStatus>> = std::sync::RwLock::new(None);
+
+/// Start interval recording of GPU metrics.
+pub async fn start_interval_recording(
+    duration_seconds: u64,
+    sample_rate_hz: u64,
+    metrics: Vec<String>
+) -> Result<String> {
+    // Check if already recording
+    {
+        let state = RECORDING_STATE.read().unwrap();
+        if let Some(ref status) = *state {
+            if status.is_recording {
+                return Err(anyhow::anyhow!("Recording already in progress"));
+            }
+        }
+    }
+    
+    let session_id = format!("rec_{}", now_ms());
+    let output_file = format!("recordings/gpu_recording_{}.json", session_id);
+    
+    // Create recording status
+    let recording_status = RecordingStatus {
+        is_recording: true,
+        session_id: Some(session_id.clone()),
+        duration_seconds: Some(duration_seconds),
+        elapsed_seconds: Some(0),
+        sample_rate_hz: Some(sample_rate_hz),
+        metrics: metrics.clone(),
+        samples_collected: 0,
+        output_file: Some(output_file.clone()),
+    };
+    
+    // Update global state
+    {
+        let mut state = RECORDING_STATE.write().unwrap();
+        *state = Some(recording_status);
+    }
+    
+    // Start recording task
+    let session_id_clone = session_id.clone();
+    tokio::spawn(async move {
+        if let Err(e) = run_interval_recording(duration_seconds, sample_rate_hz, metrics, output_file).await {
+            eprintln!("Recording error: {}", e);
+        }
+        
+        // Clear recording state when done
+        {
+            let mut state = RECORDING_STATE.write().unwrap();
+            *state = None;
+        }
+    });
+    
+    Ok(session_id)
+}
+
+/// Stop interval recording.
+pub async fn stop_interval_recording() -> Result<String> {
+    let output_file = {
+        let mut state = RECORDING_STATE.write().unwrap();
+        if let Some(ref mut status) = *state {
+            if status.is_recording {
+                status.is_recording = false;
+                status.output_file.clone().unwrap_or_default()
+            } else {
+                return Err(anyhow::anyhow!("No active recording to stop"));
+            }
+        } else {
+            return Err(anyhow::anyhow!("No active recording to stop"));
+        }
+    };
+    
+    Ok(output_file)
+}
+
+/// Get current recording status.
+pub async fn get_recording_status() -> Result<RecordingStatus> {
+    let state = RECORDING_STATE.read().unwrap();
+    match *state {
+        Some(ref status) => Ok(status.clone()),
+        None => Ok(RecordingStatus {
+            is_recording: false,
+            session_id: None,
+            duration_seconds: None,
+            elapsed_seconds: None,
+            sample_rate_hz: None,
+            metrics: vec![],
+            samples_collected: 0,
+            output_file: None,
+        })
+    }
+}
+
+/// Run the actual interval recording.
+async fn run_interval_recording(
+    duration_seconds: u64,
+    sample_rate_hz: u64,
+    metrics: Vec<String>,
+    output_file: String
+) -> Result<()> {
+    // Create output directory if it doesn't exist
+    if let Some(parent) = std::path::Path::new(&output_file).parent() {
+        std::fs::create_dir_all(parent).context("Failed to create output directory")?;
+    }
+    
+    let interval_ms = 1000 / sample_rate_hz;
+    let total_samples = duration_seconds * sample_rate_hz;
+    let mut samples = Vec::new();
+    
+    println!("Starting GPU recording: {}s at {}Hz -> {}", duration_seconds, sample_rate_hz, output_file);
+    
+    for sample_idx in 0..total_samples {
+        let start_time = std::time::Instant::now();
+        
+        // Collect telemetry sample
+        if let Ok(frame) = collect_telemetry_frame().await {
+            samples.push(frame);
+        }
+        
+        // Update recording status
+        {
+            let mut state = RECORDING_STATE.write().unwrap();
+            if let Some(ref mut status) = *state {
+                status.samples_collected = sample_idx + 1;
+                status.elapsed_seconds = Some(sample_idx / sample_rate_hz);
+                
+                // Check if recording was stopped externally
+                if !status.is_recording {
+                    break;
+                }
+            }
+        }
+        
+        // Wait for next sample
+        let elapsed = start_time.elapsed();
+        let target_duration = std::time::Duration::from_millis(interval_ms);
+        if elapsed < target_duration {
+            tokio::time::sleep(target_duration - elapsed).await;
+        }
+    }
+    
+    // Save recorded data
+    let json_data = serde_json::to_string_pretty(&samples)
+        .context("Failed to serialize recording data")?;
+    std::fs::write(&output_file, json_data)
+        .context("Failed to write recording file")?;
+    
+    println!("Recording completed: {} samples saved to {}", samples.len(), output_file);
+    Ok(())
+}
+
+/// Collect a single telemetry frame
+async fn collect_telemetry_frame() -> Result<TelemetryFrame> {
+    let nvml = Nvml::init().context("Failed to initialize NVML")?;
+    let device_count = nvml.device_count().context("Failed to get device count")?;
+    
+    if device_count == 0 {
+        return Err(anyhow::anyhow!("No NVIDIA GPUs found"));
+    }
+    
+    let device = nvml.device_by_index(0).context("Failed to get GPU device")?;
+    create_simple_telemetry_frame(&device, 0)
+}
+
+/// Process NSight report file and extract performance insights.
+pub async fn process_nsight_report(file_path: String) -> Result<NSightAnalysis> {
+    // Check if file exists
+    if !std::path::Path::new(&file_path).exists() {
+        return Err(anyhow::anyhow!("NSight report file not found: {}", file_path));
+    }
+    
+    // For now, return a mock analysis since actual NSight parsing is complex
+    // In a real implementation, this would parse the binary NSight format
+    let analysis = NSightAnalysis {
+        report_type: "NSight Compute".to_string(),
+        gpu_name: "RTX 4090".to_string(), // This would be parsed from the report
+        kernels: vec![
+            KernelAnalysis {
+                name: "example_kernel".to_string(),
+                duration_ms: 1.23,
+                grid_size: (256, 1, 1),
+                block_size: (256, 1, 1),
+                registers_per_thread: 32,
+                shared_memory_bytes: 4096,
+                occupancy_percent: 87.5,
+                sm_efficiency: 92.3,
+                memory_efficiency: 78.9,
+            }
+        ],
+        bottlenecks: vec![
+            "Memory bandwidth limited".to_string(),
+            "Low occupancy in kernel_xyz".to_string(),
+        ],
+        recommendations: vec![
+            "Increase block size to improve occupancy".to_string(),
+            "Optimize memory access patterns".to_string(),
+            "Consider using shared memory for frequently accessed data".to_string(),
+        ],
+        performance_summary: PerformanceSummary {
+            total_gpu_time_ms: 15.67,
+            average_sm_utilization: 85.2,
+            memory_throughput_gbps: 450.3,
+            compute_throughput_percent: 78.9,
+            bottleneck_analysis: "Memory bandwidth is the primary bottleneck".to_string(),
+        },
+    };
+    
+    Ok(analysis)
+}
