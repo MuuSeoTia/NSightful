@@ -76,13 +76,6 @@ class NSightfulApp {
         document.addEventListener('nsightful:resetView', () => {
             this.resetView();
         });
-        
-        // Add telemetry update listener
-        if (this.dataModel) {
-            this.dataModel.addEventListener('telemetryUpdate', (data) => {
-                this.updateDashboard(data);
-            });
-        }
 
         // Visualization events
         document.addEventListener('nsightful:initializeFullVisualization', () => {
@@ -194,18 +187,6 @@ class NSightfulApp {
 
     async loadScenario(scenarioName) {
         try {
-            if (!this.dataModel) {
-                console.error('Data model not initialized');
-                this.showNotification('Application not ready. Please wait...', 'warning');
-                return;
-            }
-            
-            if (!this.dataModel.loadTestScenario) {
-                console.error('loadTestScenario method not available');
-                this.showNotification('Test scenario loading not available', 'error');
-                return;
-            }
-            
             this.showNotification(`Loading ${scenarioName} scenario...`, 'info');
             const success = await this.dataModel.loadTestScenario(scenarioName);
             
@@ -217,7 +198,7 @@ class NSightfulApp {
             }
         } catch (error) {
             console.error('Failed to load scenario:', error);
-            this.showNotification('Failed to load scenario: ' + error.message, 'error');
+            this.showNotification('Failed to load scenario', 'error');
         }
     }
 
@@ -230,32 +211,6 @@ class NSightfulApp {
         this.showNotification('Monitoring started', 'success');
     }
 
-    updateDashboard(telemetryData) {
-        // Update dashboard stats with real-time data
-        if (telemetryData) {
-            const updateElement = (id, value, unit = '') => {
-                const element = document.getElementById(id);
-                if (element) element.textContent = value + unit;
-            };
-            
-            updateElement('gpu-util-stat', telemetryData.util_gpu, '%');
-            updateElement('memory-util-stat', telemetryData.util_memory, '%');
-            updateElement('temp-stat', telemetryData.temperature_c, '°C');
-            updateElement('power-stat', Math.round(telemetryData.power_w), 'W');
-            updateElement('clock-stat', telemetryData.sm_clock_mhz, 'MHz');
-            
-            // Update overlay stats too
-            updateElement('overlay-gpu', telemetryData.util_gpu + '%');
-            updateElement('overlay-mem', telemetryData.util_memory + '%');
-            updateElement('overlay-temp', telemetryData.temperature_c + '°C');
-            updateElement('overlay-pwr', Math.round(telemetryData.power_w) + 'W');
-            
-            // Update active SMs count (simplified)
-            const activeSMs = Math.round((telemetryData.util_gpu / 100) * 128);
-            updateElement('sm-stat', activeSMs, '/128');
-        }
-    }
-    
     resetView() {
         if (this.visualization) {
             this.visualization.setCameraMode('overview');
