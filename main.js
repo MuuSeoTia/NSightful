@@ -4,6 +4,77 @@ import TestDataLoader from './js/utils/TestDataLoader.js';
 import Enhanced3DGPUVisualization from './js/views/Enhanced3DGPUVisualization.js';
 import ChartManager from './js/utils/ChartManager.js';
 
+// Utility function to safely get Tauri invoke function
+const isTauriAvailable = () => {
+    return typeof window !== 'undefined' && window.__TAURI__ !== undefined;
+};
+
+const mockInvoke = async (command, payload = {}) => {
+    console.log(`🔧 Mock Tauri command: ${command}`, payload);
+    
+    // Mock responses for development
+    switch (command) {
+        case 'get_gpu_telemetry':
+            return JSON.stringify({
+                status: 'connected',
+                timestamp: Date.now(),
+                gpus: [{
+                    name: 'RTX 4090',
+                    utilization: Math.random() * 100,
+                    memory_used: Math.random() * 24576,
+                    memory_total: 24576,
+                    temperature: 45 + Math.random() * 30,
+                    power_draw: 200 + Math.random() * 250,
+                    sm_clock: 2000 + Math.random() * 500,
+                    memory_clock: 10000 + Math.random() * 1000
+                }]
+            });
+        case 'start_gpu_recording':
+            return 'mock-session-' + Date.now();
+        case 'stop_gpu_recording':
+            return './recordings/gpu_data_' + Date.now() + '.json';
+        case 'get_recording_status':
+            return JSON.stringify({
+                is_recording: false,
+                session_id: null,
+                duration_seconds: null,
+                elapsed_seconds: null,
+                sample_rate_hz: null,
+                metrics: [],
+                samples_collected: 0,
+                output_file: null
+            });
+        case 'process_nsight_report':
+            return JSON.stringify({
+                report_type: 'NSight Compute',
+                gpu_name: 'RTX 4090',
+                kernels: [],
+                bottlenecks: ['Memory Bandwidth', 'SM Utilization'],
+                recommendations: ['Increase memory coalescing', 'Optimize thread block size'],
+                performance_summary: {
+                    average_sm_utilization: 75.5,
+                    memory_throughput_gbps: 850.2,
+                    bottleneck_analysis: 'Memory Bandwidth Limited'
+                }
+            });
+        default:
+            throw new Error(`Unknown command: ${command}`);
+    }
+};
+
+const getSafeInvoke = async () => {
+    if (isTauriAvailable()) {
+        try {
+            const { invoke } = await import('@tauri-apps/api/tauri');
+            return invoke;
+        } catch (error) {
+            console.log('Failed to import Tauri API, using mock');
+            return mockInvoke;
+        }
+    }
+    return mockInvoke;
+};
+
 class NSightfulApp {
     constructor() {
         this.dataModel = null;
