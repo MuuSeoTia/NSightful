@@ -613,8 +613,28 @@ ${analysis.recommendations.slice(0, 3).map(rec => `• ${rec}`).join('\n')}
     }
 }
 
+// Wait for all dependencies to load
+const waitForDependencies = () => {
+    return new Promise((resolve) => {
+        const checkDependencies = () => {
+            if (typeof THREE !== 'undefined' && typeof Chart !== 'undefined') {
+                resolve();
+            } else {
+                setTimeout(checkDependencies, 100);
+            }
+        };
+        checkDependencies();
+    });
+};
+
 // Initialize the application
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🔄 Waiting for dependencies to load...');
+    
+    // Wait for THREE.js and Chart.js to be available
+    await waitForDependencies();
+    
+    console.log('✅ Dependencies loaded, initializing application...');
     window.nsightfulApp = new NSightfulApp();
     
     // Auto-connect to GPU and start mock data

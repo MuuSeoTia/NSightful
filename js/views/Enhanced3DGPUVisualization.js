@@ -39,9 +39,9 @@ class Enhanced3DGPUVisualization {
         };
 
         // Animation and interaction
-        this.clock = new THREE.Clock();
-        this.raycaster = new THREE.Raycaster();
-        this.mouse = new THREE.Vector2();
+        this.clock = null;
+        this.raycaster = null;
+        this.mouse = null;
         this.selectedComponent = null;
         this.isolatedComponents = new Set();
 
@@ -54,13 +54,38 @@ class Enhanced3DGPUVisualization {
         this.lastFPSUpdate = 0;
         this.fps = 0;
 
-        this.init();
+        // Initialize the visualization (defer if THREE not available)
+        if (typeof THREE !== 'undefined') {
+            this.init();
+        } else {
+            // Wait for THREE.js to load
+            this.waitForThree();
+        }
+    }
+
+    /**
+     * Wait for THREE.js to be available
+     */
+    waitForThree() {
+        const checkThree = () => {
+            if (typeof THREE !== 'undefined') {
+                this.init();
+            } else {
+                setTimeout(checkThree, 100);
+            }
+        };
+        checkThree();
     }
 
     /**
      * Initialize the 3D scene and components
      */
     init() {
+        // Initialize THREE.js objects now that THREE is available
+        this.clock = new THREE.Clock();
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
+        
         this.setupScene();
         this.setupLighting();
         this.setupCamera();
