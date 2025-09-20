@@ -1,489 +1,466 @@
-// NSightful GPU Visualizer - Professional Multi-Page Application
-import { NavigationManager } from './js/utils/NavigationManager.js';
-import { TestDataLoader } from './js/utils/TestDataLoader.js';
-import { GPUDataModel } from './js/models/GPUDataModel.js';
-import { IndustrialGPUVisualization } from './js/views/IndustrialGPUVisualization.js';
+// NSightful GPU Visualizer - Simplified Modern Application
+import GPUDataModel from './js/models/GPUDataModel.js';
+import TestDataLoader from './js/utils/TestDataLoader.js';
+import Enhanced3DGPUVisualization from './js/views/Enhanced3DGPUVisualization.js';
+import ChartManager from './js/utils/ChartManager.js';
 
 class NSightfulApp {
     constructor() {
-        this.navigationManager = null;
         this.dataModel = null;
         this.testDataLoader = null;
-        this.visualization = null;
-        this.fullVisualization = null;
+        this.gpu3dVisualization = null;
+        this.chartManager = null;
         this.isInitialized = false;
-        this.updateInterval = null;
+        this.isRecording = false;
+        
+        this.init();
     }
 
     async init() {
+        console.log('🚀 Initializing NSightful GPU Visualizer...');
+        
         try {
-            console.log('🚀 Initializing NSightful GPU Visualizer...');
-            
             // Initialize core components
-            await this.initializeComponents();
+            this.dataModel = new GPUDataModel();
+            this.testDataLoader = new TestDataLoader();
+            this.chartManager = new ChartManager();
             
             // Setup event listeners
             this.setupEventListeners();
             
-            // Initialize navigation system
-            this.initializeNavigation();
+            // Initialize visualizations
+            this.initializeVisualizations();
             
-            // Start the application
-            await this.startApplication();
+            // Initialize charts
+            this.chartManager.initializeCharts();
             
             this.isInitialized = true;
-            console.log('✅ NSightful GPU Visualizer initialized successfully');
+            console.log('✅ NSightful initialized successfully');
             
         } catch (error) {
-            console.error('❌ Failed to initialize NSightful GPU Visualizer:', error);
-            this.showErrorMessage('Failed to initialize application. Please refresh and try again.');
+            console.error('❌ Failed to initialize NSightful:', error);
+            this.showError('Initialization failed: ' + error.message);
         }
     }
 
-    async initializeComponents() {
-        // Initialize data model
-        this.dataModel = new GPUDataModel();
-        console.log('📊 Data model initialized');
-
-        // Initialize test data loader
-        this.testDataLoader = new TestDataLoader();
-        console.log('🧪 Test data loader initialized');
-
-        // Initialize navigation manager
-        this.navigationManager = new NavigationManager();
-        console.log('🧭 Navigation manager initialized');
+    initializeVisualizations() {
+        // Initialize enhanced 3D GPU visualization
+        const gpu3dCanvas = document.getElementById('gpu3d');
+        if (gpu3dCanvas) {
+            this.gpu3dVisualization = new Enhanced3DGPUVisualization(gpu3dCanvas, {
+                enableShadows: true,
+                enableBloom: true,
+                autoRotate: true,
+                animationSpeed: 1.0
+            });
+            console.log('🎨 Enhanced 3D GPU visualization initialized');
+        } else {
+            console.warn('⚠️ GPU 3D canvas not found');
+        }
     }
 
     setupEventListeners() {
-        // Navigation events
-        document.addEventListener('nsightful:pageChanged', (e) => {
-            this.handlePageChange(e.detail.pageId);
-        });
-
-        // Data events
-        document.addEventListener('nsightful:loadTestData', () => {
-            this.loadTestData();
-        });
-
-        document.addEventListener('nsightful:loadScenario', (e) => {
-            this.loadScenario(e.detail.scenario);
-        });
-
-        document.addEventListener('nsightful:startMonitoring', () => {
-            this.startMonitoring();
-        });
-
-        document.addEventListener('nsightful:resetView', () => {
-            this.resetView();
-        });
-
-        // Visualization events
-        document.addEventListener('nsightful:initializeFullVisualization', () => {
-            this.initializeFullVisualization();
-        });
-
-        document.addEventListener('nsightful:visualizationControl', (e) => {
-            this.handleVisualizationControl(e.detail.control, e.detail.value);
-        });
-
-        // Performance events
-        document.addEventListener('nsightful:performanceControl', (e) => {
-            this.handlePerformanceControl(e.detail.control, e.detail.value);
-        });
-
-        // Settings events
-        document.addEventListener('nsightful:settingsChanged', (e) => {
-            this.handleSettingsChange(e.detail);
-        });
-
-        // Connection button
-        const connectBtn = document.getElementById('connectBtn');
-        if (connectBtn) {
-            connectBtn.addEventListener('click', () => {
-                this.toggleConnection();
+        // Upload button
+        const uploadBtn = document.getElementById('uploadBtn');
+        if (uploadBtn) {
+            uploadBtn.addEventListener('click', () => {
+                this.showUploadModal();
             });
         }
-    }
-
-    initializeNavigation() {
-        this.navigationManager.initialize();
-    }
-
-    async startApplication() {
-        // Initialize dashboard visualization
-        await this.initializeDashboardVisualization();
         
-        // Load test data (with error handling)
-        try {
-            console.log('✅ Loading test data...');
-            // Simply call the method - it should exist
-            await this.dataModel.loadTestData();
-            console.log('✅ Test data loaded successfully');
-        } catch (error) {
-            console.warn('⚠️ Failed to load test data, continuing without it:', error);
-            // Initialize a basic fallback
-            if (!this.testDataLoader) {
-                this.testDataLoader = new TestDataLoader();
-            }
+        // Record button
+        const recordBtn = document.getElementById('recordBtn');
+        if (recordBtn) {
+            recordBtn.addEventListener('click', () => {
+                this.showRecordModal();
+            });
         }
         
-        // Start UI updates
-        this.startUIUpdates();
-        
-        // Update connection status
-        this.updateConnectionStatus(false);
-    }
-
-    async initializeDashboardVisualization() {
-        try {
-            this.visualization = new IndustrialGPUVisualization();
-            await this.visualization.initialize();
-            console.log('🎨 Dashboard visualization initialized');
-        } catch (error) {
-            console.error('Failed to initialize dashboard visualization:', error);
-            // Continue without 3D visualization for now
-            this.visualization = null;
-        }
-    }
-
-    async initializeFullVisualization() {
-        if (this.fullVisualization) return;
-
-        try {
-            this.fullVisualization = new IndustrialGPUVisualization();
-            
-            // Temporarily change the container ID for full visualization
-            const originalContainer = document.getElementById('gpu-visualization');
-            const fullContainer = document.getElementById('gpu-visualization-full');
-            
-            if (fullContainer) {
-                // Temporarily change ID
-                fullContainer.id = 'gpu-visualization';
-                await this.fullVisualization.initialize();
-                fullContainer.id = 'gpu-visualization-full';
+        // Component control buttons
+        const componentBtns = document.querySelectorAll('.component-btn');
+        componentBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Update active state
+                componentBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
                 
-                // Restore original container ID
-                if (originalContainer) {
-                    originalContainer.id = 'gpu-visualization';
+                // Isolate components
+                const componentType = e.target.dataset.component;
+                if (this.gpu3dVisualization) {
+                    this.gpu3dVisualization.isolateComponents(componentType);
                 }
-                
-                console.log('🎨 Full-screen visualization initialized');
-            }
-        } catch (error) {
-            console.error('Failed to initialize full visualization:', error);
+            });
+        });
+        
+        // Modal events
+        this.setupModalEvents();
+        
+        // Data model events
+        if (this.dataModel) {
+            this.dataModel.addEventListener('telemetryUpdate', (data) => {
+                this.updateVisualizations(data);
+            });
         }
+        
+        // 3D visualization events
+        const gpu3dCanvas = document.getElementById('gpu3d');
+        if (gpu3dCanvas) {
+            gpu3dCanvas.addEventListener('componentSelected', (event) => {
+                console.log('Component selected:', event.detail);
+            });
+        }
+        
+        // Window resize
+        window.addEventListener('resize', () => {
+            this.handleResize();
+        });
     }
 
-    async loadTestData() {
-        try {
-            this.showNotification('Loading test data...', 'info');
-            await this.dataModel.loadTestData();
-            this.showNotification('Test data loaded successfully', 'success');
-        } catch (error) {
-            console.error('Failed to load test data:', error);
-            this.showNotification('Failed to load test data', 'error');
+    setupModalEvents() {
+        // Upload modal
+        const uploadModal = document.getElementById('uploadModal');
+        const closeUploadModal = document.getElementById('closeUploadModal');
+        const browseFiles = document.getElementById('browseFiles');
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        
+        if (closeUploadModal) {
+            closeUploadModal.addEventListener('click', () => {
+                this.hideUploadModal();
+            });
         }
-    }
-
-    async loadScenario(scenarioName) {
-        try {
-            this.showNotification(`Loading ${scenarioName} scenario...`, 'info');
-            const success = await this.dataModel.loadTestScenario(scenarioName);
+        
+        if (browseFiles && fileInput) {
+            browseFiles.addEventListener('click', () => {
+                fileInput.click();
+            });
             
-            if (success) {
-                this.updateConnectionStatus(true);
-                this.showNotification(`${scenarioName} scenario loaded successfully`, 'success');
-            } else {
-                this.showNotification('Failed to load scenario', 'error');
+            fileInput.addEventListener('change', (event) => {
+                this.handleFileUpload(event);
+            });
+        }
+        
+        // Drag and drop for upload
+        if (uploadArea) {
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                this.handleFileDrop(e);
+            });
+        }
+        
+        // Record modal
+        const recordModal = document.getElementById('recordModal');
+        const closeRecordModal = document.getElementById('closeRecordModal');
+        const startRecording = document.getElementById('startRecording');
+        
+        if (closeRecordModal) {
+            closeRecordModal.addEventListener('click', () => {
+                this.hideRecordModal();
+            });
+        }
+        
+        if (startRecording) {
+            startRecording.addEventListener('click', () => {
+                this.startRecording();
+            });
+        }
+        
+        // Close modals on outside click
+        [uploadModal, recordModal].forEach(modal => {
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.classList.remove('show');
+                        modal.style.display = 'none';
+                    }
+                });
             }
-        } catch (error) {
-            console.error('Failed to load scenario:', error);
-            this.showNotification('Failed to load scenario', 'error');
+        });
+    }
+
+    updateVisualizations(telemetryData) {
+        if (!telemetryData) return;
+        
+        // Update 3D visualization
+        if (this.gpu3dVisualization) {
+            this.gpu3dVisualization.updateTelemetry(telemetryData);
+        }
+        
+        // Update charts
+        if (this.chartManager) {
+            this.chartManager.updateCharts(telemetryData);
+        }
+        
+        // Update recording status if recording
+        if (this.isRecording) {
+            this.updateRecordingStatus(telemetryData);
         }
     }
 
-    startMonitoring() {
-        if (!this.dataModel.state.connected) {
-            this.showNotification('Please connect to GPU first', 'warning');
+    showUploadModal() {
+        const modal = document.getElementById('uploadModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('show');
+        }
+    }
+    
+    hideUploadModal() {
+        const modal = document.getElementById('uploadModal');
+        if (modal) {
+            modal.classList.remove('show');
+            modal.style.display = 'none';
+        }
+    }
+    
+    showRecordModal() {
+        const modal = document.getElementById('recordModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('show');
+        }
+    }
+    
+    hideRecordModal() {
+        const modal = document.getElementById('recordModal');
+        if (modal) {
+            modal.classList.remove('show');
+            modal.style.display = 'none';
+        }
+    }
+
+    handleFileUpload(event) {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+        
+        const file = files[0];
+        this.processUploadedFile(file);
+    }
+    
+    handleFileDrop(event) {
+        const files = event.dataTransfer.files;
+        if (!files || files.length === 0) return;
+        
+        const file = files[0];
+        this.processUploadedFile(file);
+    }
+    
+    processUploadedFile(file) {
+        console.log('📁 Processing file:', file.name, file.type, file.size);
+        
+        // Check file type
+        const validExtensions = ['.nsight-cuprof', '.ncu-rep', '.qdrep'];
+        const isValidFile = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+        
+        if (!isValidFile) {
+            this.showError('Invalid file type. Please select an NSight report file.');
             return;
         }
         
-        this.showNotification('Monitoring started', 'success');
-    }
-
-    resetView() {
-        if (this.visualization) {
-            this.visualization.setCameraMode('overview');
-        }
-        if (this.fullVisualization) {
-            this.fullVisualization.setCameraMode('overview');
-        }
-        this.showNotification('View reset to overview', 'info');
-    }
-
-    handlePageChange(pageId) {
-        console.log(`📄 Switched to page: ${pageId}`);
+        // Show upload progress
+        this.showUploadProgress();
         
-        // Page-specific initialization
-        if (pageId === 'visualization' && !this.fullVisualization) {
+        // Process the file
+        this.processNSightReport(file);
+    }
+    
+    showUploadProgress() {
+        const uploadArea = document.getElementById('uploadArea');
+        const uploadProgress = document.getElementById('uploadProgress');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        
+        if (uploadArea) uploadArea.style.display = 'none';
+        if (uploadProgress) uploadProgress.style.display = 'block';
+        
+        // Simulate progress
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += Math.random() * 20;
+            if (progress > 100) {
+                progress = 100;
+                clearInterval(interval);
+                setTimeout(() => {
+                    this.hideUploadModal();
+                    this.showSuccess('NSight report processed successfully!');
+                }, 500);
+            }
+            
+            if (progressFill) progressFill.style.width = progress + '%';
+            if (progressText) progressText.textContent = `Processing report... ${Math.round(progress)}%`;
+        }, 200);
+    }
+
+    async processNSightReport(file) {
+        try {
+            // This will be handled by the Rust backend
+            console.log('⚙️ Processing NSight report:', file.name);
+            
+            // TODO: Send file to Rust backend for processing
+            // const result = await invoke('process_nsight_report', { file });
+            
+            // For now, simulate processing
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            console.log('✅ NSight report processed successfully');
+        } catch (error) {
+            console.error('❌ Failed to process NSight report:', error);
+            this.showError('Failed to process NSight report: ' + error.message);
+        }
+    }
+    
+    async startRecording() {
+        const duration = document.getElementById('recordDuration')?.value || 30;
+        const sampleRate = document.getElementById('sampleRate')?.value || 50;
+        
+        console.log(`⏺️ Starting GPU recording: ${duration}s at ${sampleRate}Hz`);
+        
+        try {
+            this.isRecording = true;
+            this.hideRecordModal();
+            
+            // Update UI to show recording state
+            this.updateRecordingUI(true);
+            
+            // TODO: Start actual GPU recording via Rust backend
+            // await invoke('start_gpu_recording', { duration, sampleRate });
+            
+            // For now, simulate recording
             setTimeout(() => {
-                this.initializeFullVisualization();
-            }, 100);
+                this.stopRecording();
+            }, duration * 1000);
+            
+        } catch (error) {
+            console.error('❌ Failed to start recording:', error);
+            this.showError('Failed to start recording: ' + error.message);
+            this.isRecording = false;
         }
     }
-
-    handleVisualizationControl(control, value) {
-        const activeVisualization = this.navigationManager.getCurrentPage() === 'visualization' 
-            ? this.fullVisualization 
-            : this.visualization;
-            
-        if (!activeVisualization) return;
-
-        switch (control) {
-            case 'cameraMode':
-                activeVisualization.setCameraMode(value);
-                break;
-            case 'showSMs':
-            case 'showMemory':
-            case 'showTensors':
-            case 'showRTCores':
-            case 'showCooling':
-            case 'showPCB':
-                const component = control.replace('show', '').toLowerCase();
-                activeVisualization.setComponentVisibility(component, value);
-                break;
-            case 'isolateCompute':
-                this.isolateComponent('compute');
-                break;
-            case 'isolateMemory':
-                this.isolateComponent('memory');
-                break;
-            case 'isolateTensors':
-                this.isolateComponent('tensors');
-                break;
-            case 'isolateRT':
-                this.isolateComponent('rt');
-                break;
-            case 'resetIsolation':
-                this.resetIsolation();
-                break;
-        }
+    
+    stopRecording() {
+        console.log('⏹️ Stopping GPU recording');
+        this.isRecording = false;
+        this.updateRecordingUI(false);
+        this.showSuccess('GPU recording completed successfully!');
     }
-
-    isolateComponent(component) {
-        const activeVisualization = this.navigationManager.getCurrentPage() === 'visualization' 
-            ? this.fullVisualization 
-            : this.visualization;
-            
-        if (!activeVisualization) return;
-
-        // Hide all components first
-        ['sms', 'memory', 'tensors', 'rtcores', 'cooling', 'pcb'].forEach(comp => {
-            activeVisualization.setComponentVisibility(comp, false);
-        });
-
-        // Show only the isolated component
-        switch (component) {
-            case 'compute':
-                activeVisualization.setComponentVisibility('sms', true);
-                activeVisualization.setCameraMode('sm-focus');
-                break;
-            case 'memory':
-                activeVisualization.setComponentVisibility('memory', true);
-                activeVisualization.setCameraMode('memory-focus');
-                break;
-            case 'tensors':
-                activeVisualization.setComponentVisibility('tensors', true);
-                activeVisualization.setCameraMode('tensor-focus');
-                break;
-            case 'rt':
-                activeVisualization.setComponentVisibility('rtcores', true);
-                activeVisualization.setCameraMode('rt-focus');
-                break;
-        }
-    }
-
-    resetIsolation() {
-        const activeVisualization = this.navigationManager.getCurrentPage() === 'visualization' 
-            ? this.fullVisualization 
-            : this.visualization;
-            
-        if (!activeVisualization) return;
-
-        // Show all components
-        ['sms', 'memory', 'tensors', 'rtcores', 'cooling', 'pcb'].forEach(comp => {
-            activeVisualization.setComponentVisibility(comp, true);
-        });
+    
+    updateRecordingUI(isRecording) {
+        const recordingStatus = document.getElementById('recordingStatus');
+        const statusDot = recordingStatus?.querySelector('.status-dot');
+        const statusText = recordingStatus?.querySelector('.status-text');
         
-        activeVisualization.setCameraMode('overview');
-    }
-
-    handlePerformanceControl(control, value) {
-        console.log(`Performance control: ${control} = ${value}`);
-        // Implement performance monitoring controls
-    }
-
-    handleSettingsChange(settings) {
-        console.log('Settings changed:', settings);
-        // Apply settings to visualizations and other components
-    }
-
-    async toggleConnection() {
-        if (this.dataModel.state.connected) {
-            this.dataModel.stopTestScenario();
-            this.updateConnectionStatus(false);
-            this.showNotification('Disconnected from GPU', 'info');
-        } else {
-            await this.dataModel.connectToGPU();
-            this.updateConnectionStatus(true);
-            this.showNotification('Connected to GPU', 'success');
-        }
-    }
-
-    updateConnectionStatus(connected) {
-        const indicator = document.getElementById('connectionIndicator');
-        const text = document.getElementById('connectionText');
-        const btn = document.getElementById('connectBtn');
-
-        if (indicator) {
-            indicator.className = `status-indicator ${connected ? 'connected' : ''}`;
-        }
-
-        if (text) {
-            text.textContent = connected ? 'Connected' : 'Disconnected';
-        }
-
-        if (btn) {
-            btn.textContent = connected ? 'Disconnect' : 'Connect';
-        }
-    }
-
-    startUIUpdates() {
-        // Update UI every 100ms
-        this.updateInterval = setInterval(() => {
-            this.updateUI();
-        }, 100);
-    }
-
-    updateUI() {
-        if (!this.dataModel.state.connected) return;
-
-        const telemetry = this.dataModel.getCurrentTelemetry();
-        
-        // Update stat cards
-        this.updateStatCard('gpu-util-stat', Math.round(telemetry.utilGPU));
-        this.updateStatCard('memory-util-stat', Math.round(telemetry.utilMemory));
-        this.updateStatCard('temp-stat', Math.round(telemetry.temperature));
-        this.updateStatCard('power-stat', Math.round(telemetry.power));
-        this.updateStatCard('clock-stat', Math.round(telemetry.smClock));
-        this.updateStatCard('sm-stat', telemetry.smUtilizations?.filter(u => u > 10).length || 0);
-
-        // Update overlay stats
-        this.updateOverlayStats(telemetry);
-
-        // Update visualizations
-        if (this.visualization) {
-            this.visualization.updatePerformanceData(telemetry);
-        }
-        if (this.fullVisualization) {
-            this.fullVisualization.updatePerformanceData(telemetry);
-        }
-    }
-
-    updateStatCard(elementId, value) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            const valueElement = element.querySelector('.stat-value');
-            if (valueElement) {
-                const currentText = valueElement.textContent;
-                const unitMatch = currentText.match(/[a-zA-Z°%/]+/);
-                const unit = unitMatch ? unitMatch[0] : '';
-                valueElement.innerHTML = `${value}<span class="stat-unit">${unit}</span>`;
+        if (statusDot && statusText) {
+            if (isRecording) {
+                statusDot.style.backgroundColor = '#ff6b6b';
+                statusText.textContent = 'Recording...';
+            } else {
+                statusDot.style.backgroundColor = '#4ecdc4';
+                statusText.textContent = 'Ready';
             }
         }
     }
+    
+    updateRecordingStatus(telemetryData) {
+        // Update any recording-specific UI elements
+        // This could show real-time recording progress, data points collected, etc.
+    }
 
-    updateOverlayStats(telemetry) {
-        const updates = {
-            'overlay-gpu': `${Math.round(telemetry.utilGPU)}%`,
-            'overlay-mem': `${Math.round(telemetry.utilMemory)}%`,
-            'overlay-temp': `${Math.round(telemetry.temperature)}°C`,
-            'overlay-pwr': `${Math.round(telemetry.power)}W`
-        };
+    handleResize() {
+        // Resize 3D visualization
+        if (this.gpu3dVisualization) {
+            this.gpu3dVisualization.handleResize();
+        }
+        
+        // Resize charts
+        if (this.chartManager) {
+            this.chartManager.resizeCharts();
+        }
+    }
 
-        Object.entries(updates).forEach(([id, value]) => {
-            const element = document.getElementById(id);
-            if (element) element.textContent = value;
+    showError(message) {
+        console.error('❌ Error:', message);
+        this.showToast(message, 'error');
+    }
+    
+    showSuccess(message) {
+        console.log('✅ Success:', message);
+        this.showToast(message, 'success');
+    }
+    
+    showInfo(message) {
+        console.info('ℹ️ Info:', message);
+        this.showToast(message, 'info');
+    }
+    
+    showToast(message, type = 'info') {
+        // Create toast notification
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+        
+        // Style the toast
+        Object.assign(toast.style, {
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            padding: '15px 20px',
+            borderRadius: '8px',
+            color: 'white',
+            fontWeight: '500',
+            zIndex: '10000',
+            maxWidth: '300px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+            transform: 'translateX(100%)',
+            transition: 'transform 0.3s ease'
         });
-    }
-
-    showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.style.cssText = `
-            position: fixed;
-            top: 100px;
-            right: 20px;
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--accent-primary);
-            border-radius: var(--border-radius);
-            padding: var(--spacing-md);
-            color: var(--text-primary);
-            z-index: 10000;
-            animation: slideIn 0.3s ease;
-            box-shadow: var(--shadow-lg);
-        `;
-        notification.textContent = message;
-
-        document.body.appendChild(notification);
-
+        
+        // Set background color based on type
+        const colors = {
+            error: '#ff6b6b',
+            success: '#4ecdc4',
+            info: '#00d4ff'
+        };
+        toast.style.background = colors[type] || colors.info;
+        
+        document.body.appendChild(toast);
+        
+        // Animate in
         setTimeout(() => {
-            notification.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => notification.remove(), 300);
-        }, 3000);
-    }
-
-    showErrorMessage(message) {
-        const errorDiv = document.createElement('div');
-        errorDiv.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            border: 2px solid var(--accent-danger);
-            color: var(--text-primary);
-            padding: var(--spacing-xl);
-            border-radius: var(--border-radius-lg);
-            text-align: center;
-            z-index: 10000;
-            font-size: 1.1rem;
-            max-width: 400px;
-        `;
-        errorDiv.textContent = message;
-        document.body.appendChild(errorDiv);
+            toast.style.transform = 'translateX(0)';
+        }, 100);
+        
+        // Auto remove
+        setTimeout(() => {
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, 4000);
     }
 }
 
-// Initialize the application when DOM is loaded
+// Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
-    // Add loading animations
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+    window.nsightfulApp = new NSightfulApp();
+    
+    // Auto-connect to GPU and start mock data
+    setTimeout(() => {
+        if (window.nsightfulApp.dataModel) {
+            window.nsightfulApp.dataModel.connectToGPU();
         }
-        @keyframes slideOut {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(100%); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(style);
-
-    new NSightfulApp().init();
+    }, 1000);
 });
 
-export { NSightfulApp };
+export default NSightfulApp;
