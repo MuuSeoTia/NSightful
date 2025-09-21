@@ -361,7 +361,7 @@ class NSightfulApp {
             if (progress > 100) {
                 progress = 100;
                 clearInterval(interval);
-                setTimeout(() => {
+            setTimeout(() => {
                     this.hideUploadModal();
                     this.showSuccess('NSight report processed successfully!');
                 }, 500);

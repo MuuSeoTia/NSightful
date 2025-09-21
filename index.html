@@ -153,5 +153,64 @@
     </div>
 
     <script type="module" src="main.js"></script>
+    
+    <!-- Inline test to ensure THREE.js works -->
+    <script>
+        // Test THREE.js immediately when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🔍 Testing THREE.js availability...');
+            
+            if (typeof THREE === 'undefined') {
+                console.error('❌ THREE.js not loaded!');
+                return;
+            }
+            
+            console.log('✅ THREE.js loaded successfully');
+            
+            // Test basic 3D setup
+            const canvas = document.getElementById('gpu3d');
+            if (!canvas) {
+                console.error('❌ Canvas element not found!');
+                return;
+            }
+            
+            console.log('✅ Canvas found:', canvas);
+            
+            // Create basic 3D scene as a test
+            try {
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+                const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+                
+                renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+                renderer.setClearColor(0x000000, 0);
+                
+                // Add a simple test cube
+                const geometry = new THREE.BoxGeometry(2, 2, 2);
+                const material = new THREE.MeshBasicMaterial({ 
+                    color: 0x00d4ff,
+                    wireframe: true
+                });
+                const cube = new THREE.Mesh(geometry, material);
+                scene.add(cube);
+                
+                camera.position.z = 5;
+                
+                // Animation loop
+                function animate() {
+                    requestAnimationFrame(animate);
+                    cube.rotation.x += 0.01;
+                    cube.rotation.y += 0.01;
+                    renderer.render(scene, camera);
+                }
+                
+                animate();
+                console.log('✅ Basic 3D test cube created and animating');
+                
+            } catch (error) {
+                console.error('❌ THREE.js setup failed:', error);
+            }
+        });
+    </script>
 </body>
 </html>

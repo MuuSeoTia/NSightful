@@ -321,6 +321,7 @@ fn estimate_memory_type(name: &str) -> String {
 /// 
 /// # Returns
 /// * `Result<()>` - Success or error if streaming fails
+#[allow(dead_code)]
 pub async fn nvml_stream(mut period_ms: u64) -> Result<()> {
     if period_ms < 50 {
         period_ms = 50;

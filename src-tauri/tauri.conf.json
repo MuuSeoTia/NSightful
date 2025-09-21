@@ -40,16 +40,6 @@
     "security": {
       "csp": null
     },
-    "windows": [
-      {
-        "fullscreen": false,
-        "resizable": true,
-        "title": "NSightful GPU Visualizer",
-        "width": 1400,
-        "height": 900,
-        "minWidth": 800,
-        "minHeight": 600
-      }
-    ]
+    "windows": []
   }
 }
